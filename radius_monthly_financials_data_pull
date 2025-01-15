@@ -1,0 +1,156 @@
+radius_monthly_financials_data_pull <- function(as_of_date = "2024-09-30",  file_name = "Merion Summary Sept 2024 10-29-24_test", balance_sheet_tab = "RH Balance Sheet", cash_flow_tab = "RH Cash Flow", income_statement_tab = "9m July, Aug, Sept  Q3", current_month_column = "september") {
+  
+  balance_sheet <- read.xlsx(path.expand(paste0("~/R Data/Monthly Financials/", file_name, ".xlsx")), sheet = balance_sheet_tab) %>% 
+    clean_names() %>% 
+    mutate(
+      category = case_when(
+        !is.na(assets) ~ assets,
+        !is.na(x2) ~ x2,
+        !is.na(x3) ~ x3,
+        !is.na(x4) ~ x4,
+        !is.na(x5) ~ x5,
+        !is.na(x6) ~ x6,
+        TRUE ~ NA_character_
+      )
+    ) %>% 
+    filter(!is.na(category)) %>% 
+    transmute(
+      Field = category,
+      Amount = as.numeric(x7)
+    )
+    
+  
+  cash_flows <- read.xlsx(path.expand(paste0("~/R Data/Monthly Financials/", file_name, ".xlsx")), sheet = cash_flow_tab) %>% 
+    clean_names() %>% 
+    transmute(
+      Field = radius_holdings_llc,
+      Amount = as.numeric(x2)
+    )
+  
+  income_statement <- read.xlsx(path.expand(paste0("~/R Data/Monthly Financials/", file_name, ".xlsx")), sheet = income_statement_tab) %>% 
+    clean_names() %>% 
+    mutate(
+      category = case_when(
+        !is.na(x1) ~ x1,
+        !is.na(x2) ~ x2,
+        !is.na(x3) ~ x3,
+        !is.na(x4) ~ x4,
+        !is.na(x5) ~ x5,
+        TRUE ~ NA_character_
+      )
+    ) %>% 
+    filter(
+      !is.na(category)
+    ) %>% 
+    transmute(
+      Field = category,
+      Amount = as.numeric(!!as.name(current_month_column))
+    )
+  
+  output_header <- c("Field", "Amount")
+  
+  revenue <- income_statement %>% 
+    filter(
+      Field == "Revenue"
+    ) %>% 
+    select(Amount) %>% 
+    pull()
+  
+  payroll_expense <- income_statement %>% 
+    filter(
+      Field == "Payroll and Related's"
+    ) %>% 
+    select(Amount) %>% 
+    pull()
+  
+  gross_profit <- revenue - payroll_expense
+  
+  gp_margin <- gross_profit / revenue
+  
+  adjusted_ebitda <- income_statement %>% 
+    filter(
+      Field == "Adjusted EBITDA"
+    ) %>%  
+    select(Amount) %>% 
+    pull()
+  
+  ebitda_margin <- adjusted_ebitda / revenue
+  
+  rolling_ltm_revenue <- ""
+  rolling_ltm_ebitda <- ""
+  skip_line_value <- ""
+  
+  senior_debt <- balance_sheet %>% 
+    filter(
+      grepl("WSFS Loan Payable", Field)
+    ) %>% 
+    summarize(sum(Amount)) %>% 
+    pull()
+  
+  sub_debt <- balance_sheet %>% 
+    filter(
+      grepl("Everside Loan|Merion Loan", Field)
+    ) %>% 
+    summarize(sum(Amount)) %>% 
+    pull()
+  
+  total_debt <- senior_debt + sub_debt
+  
+  total_cash <- cash_flows %>% 
+    filter(
+      Field == "Cash and cash equivalents - end of year"
+    ) %>% 
+    select(Amount) %>% 
+    pull()
+  
+  revolver_amount <- balance_sheet %>% 
+    filter(
+      grepl(" - Revolver", Field)
+    ) %>% 
+    select(Amount) %>% 
+    pull()
+  
+  revolver_remaining <- 10000000 - revolver_amount
+  
+  liquidity <- total_cash + revolver_remaining
+  
+  output <- data.table(
+    Field = c(
+      "Revenue",
+      "Gross Profit",
+      "GP Margin %",
+      "Adj. EBITDA",
+      "EBITDA Margin %",
+      "Rolling LTM Revenue",
+      "Rolling LTM Adj. EBITDA",
+      "skip_row",
+      "Senior Debt",
+      "Sub Debt",
+      "Total Debt",
+      "Cash",
+      "Revolver Availability",
+      "Liquidity"
+    ),
+    Amount = c(
+      revenue/1000,
+      gross_profit/1000,
+      gp_margin,
+      adjusted_ebitda/1000,
+      ebitda_margin,
+      rolling_ltm_revenue,
+      rolling_ltm_ebitda,
+      skip_line_value,
+      senior_debt/1000,
+      sub_debt/1000,
+      total_debt/1000,
+      total_cash/1000,
+      revolver_remaining/1000,
+      liquidity/1000
+    )
+  )
+  
+  print(output)
+  
+  return(output)
+  
+}
