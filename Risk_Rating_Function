@@ -1,0 +1,1563 @@
+# library the packages from the IRR_Data_Tab_Creation.R script function first
+
+getRiskRatingDataset <- function(current_as_of_date_input = "2025-06-30") {
+  
+  current_as_of_date <- as.Date(current_as_of_date_input)
+  
+  prior_quarter <- rollback(rollback(rollback(current_as_of_date)))
+  
+  prior_year <- rollback(rollback(rollback(rollback(rollback(rollback(rollback(rollback(rollback(rollback(rollback(rollback(current_as_of_date))))))))))))
+  
+  Current_Everside_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Everside Dataset") %>% 
+    clean_names() %>% 
+    mutate(
+      corrected_debt_cost = as.numeric(corrected_debt_cost),
+      corrected_debt_fmv = as.numeric(corrected_debt_fmv),
+      corrected_equity_cost = as.numeric(corrected_equity_cost),
+      corrected_equity_fmv = as.numeric(corrected_equity_fmv)
+    ) %>% 
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      company_name,
+      industry,
+      geography,
+      date_of_investment = case_when(
+        str_length(date_of_investment) == 5 ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30"),
+        date_of_investment == "9/31/2022" ~ as.Date("2022-09-31", format = "%Y/%m/%d"),
+        TRUE ~ NA
+      ),
+      invested_debt = case_when(
+        corrected_debt_cost > 0 ~ corrected_debt_cost,
+        investment_vertical == "Directs" ~ everside_exposure_debt,
+        TRUE ~ as.numeric(invested_debt)
+      ),
+      invested_equity = case_when(
+        corrected_equity_cost > 0 ~ corrected_equity_cost,
+        investment_vertical == "Directs" ~ everside_exposure_equity,
+        TRUE ~ as.numeric(invested_equity)
+      ),
+      debt_realized_value = as.numeric(debt_realized_value),
+      equity_realized_value = as.numeric(equity_realized_value),
+      everside_percent_exposure = as.numeric(everside_percent_exposure),
+      debt_gaap_cost = as.numeric(debt_gaap_cost),
+      debt_fmv = case_when(
+        corrected_debt_fmv > 0 ~ corrected_debt_fmv,
+        TRUE ~ as.numeric(debt_fmv)
+      ),
+      equity_fmv = case_when(
+        corrected_equity_fmv > 0 ~ corrected_equity_fmv,
+        TRUE ~ as.numeric(equity_fmv)
+      ),
+      total_fmv = case_when(
+        corrected_total_fmv > 0 ~ corrected_total_fmv,
+        TRUE ~ total_fmv
+      ),
+      debt_pricing_cash,
+      debt_pricing_pik,
+      debt_pricing_total_coupon,
+      debt_pricing_maturity = case_when(
+        str_length(debt_pricing_maturity) == 5 ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+        TRUE ~ NA
+      ),
+      equity_pricing_equity_ownership_fd = as.numeric(equity_pricing_equity_ownership_fd),
+      at_close_senior_debt,
+      at_close_sr_debt_turns,
+      at_close_total_debt = as.numeric(at_close_total_debt),
+      at_close_total_debt_turns,
+      at_close_liquidity_cash_available_liquidity = as.numeric(at_close_liquidity_cash_available_liquidity),
+      at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+      at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+      at_close_ev_multiple,
+      at_close_sales = as.numeric(at_close_sales),
+      at_close_ebitda = as.numeric(at_close_ebitda),
+      at_close_ebitda_margin = at_close_ebitda / at_close_sales,
+      at_close_debt_ev_ratio = at_close_total_debt / at_close_enterprise_value,
+      current_senior_debt,
+      current_sr_debt_turns,
+      current_total_debt = as.numeric(current_total_debt),
+      current_total_debt_turns,
+      current_liquidity_cash_available_liquidity = as.numeric(current_liquidity_cash_available_liquidity),
+      current_fccr_current = as.numeric(current_fccr_current),
+      current_enterprise_value = as.numeric(current_enterprise_value),
+      current_ev_multiple,
+      current_sales = as.numeric(current_sales),
+      current_ebitda = as.numeric(current_ebitda),
+      current_ebitda_margin = current_ebitda / current_sales,
+      current_debt_ev_ratio = current_total_debt / current_enterprise_value,
+      current_capex = as.numeric(current_capex),
+      current_ebitda_capex = as.numeric(current_ebitda_capex),
+      current_covenants_breach,
+      current_on_interest,
+      debt_coupon_all_in_rate = as.numeric(debt_coupon_all_in_rate),
+      debt_coupon_everside_exposure = as.numeric(debt_coupon_everside_exposure),
+      at_close_leverage_everside_exposure,
+      current_leverage_everside_exposure,
+      close_leverage,
+      current_leverage,
+      debt_coupon_everside_exposure,
+      debt_coupon_cash_rate,
+      debt_coupon_pik_rate,
+      debt_coupon_all_in_rate
+    ) %>% 
+    filter(as_of_date %in% c(current_as_of_date)) %>% 
+    collect() %>% 
+    data.table()
+  
+  Prior_Quarter_Everside_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Everside Dataset") %>% 
+    clean_names() %>%
+    mutate(
+      corrected_debt_cost = as.numeric(corrected_debt_cost),
+      corrected_debt_fmv = as.numeric(corrected_debt_fmv),
+      corrected_equity_cost = as.numeric(corrected_equity_cost),
+      corrected_equity_fmv = as.numeric(corrected_equity_fmv)
+    ) %>% 
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      company_name,
+      industry,
+      geography,
+      date_of_investment = case_when(
+        str_length(date_of_investment) == 5 ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30"),
+        date_of_investment == "9/31/2022" ~ as.Date("2022-09-31", format = "%Y/%m/%d"),
+        TRUE ~ NA
+      ),
+      invested_debt = case_when(
+        corrected_debt_cost > 0 ~ corrected_debt_cost,
+        investment_vertical == "Directs" ~ everside_exposure_debt,
+        TRUE ~ as.numeric(invested_debt)
+      ),
+      invested_equity = case_when(
+        corrected_equity_cost > 0 ~ corrected_equity_cost,
+        investment_vertical == "Directs" ~ everside_exposure_equity,
+        TRUE ~ as.numeric(invested_equity)
+      ),
+      debt_realized_value = as.numeric(debt_realized_value),
+      equity_realized_value = as.numeric(equity_realized_value),
+      everside_percent_exposure = as.numeric(everside_percent_exposure),
+      debt_gaap_cost = as.numeric(debt_gaap_cost),
+      debt_fmv = case_when(
+        corrected_debt_fmv > 0 ~ corrected_debt_fmv,
+        TRUE ~ as.numeric(debt_fmv)
+      ),
+      equity_fmv = case_when(
+        corrected_equity_fmv > 0 ~ corrected_equity_fmv,
+        TRUE ~ as.numeric(equity_fmv)
+      ),
+      total_fmv = case_when(
+        corrected_total_fmv > 0 ~ corrected_total_fmv,
+        TRUE ~ total_fmv
+      ),
+      debt_pricing_cash,
+      debt_pricing_pik,
+      debt_pricing_total_coupon,
+      debt_pricing_maturity = case_when(
+        str_length(debt_pricing_maturity) == 5 ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+        TRUE ~ NA
+      ),
+      equity_pricing_equity_ownership_fd = as.numeric(equity_pricing_equity_ownership_fd),
+      at_close_senior_debt,
+      at_close_sr_debt_turns,
+      at_close_total_debt = as.numeric(at_close_total_debt),
+      at_close_total_debt_turns,
+      at_close_liquidity_cash_available_liquidity = as.numeric(at_close_liquidity_cash_available_liquidity),
+      at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+      at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+      at_close_ev_multiple,
+      at_close_sales = as.numeric(at_close_sales),
+      at_close_ebitda = as.numeric(at_close_ebitda),
+      at_close_ebitda_margin = at_close_ebitda / at_close_sales,
+      at_close_debt_ev_ratio = at_close_total_debt / at_close_enterprise_value,
+      current_senior_debt,
+      current_sr_debt_turns,
+      current_total_debt = as.numeric(current_total_debt),
+      current_total_debt_turns,
+      current_liquidity_cash_available_liquidity = as.numeric(current_liquidity_cash_available_liquidity),
+      current_fccr_current = as.numeric(current_fccr_current),
+      current_enterprise_value = as.numeric(current_enterprise_value),
+      current_ev_multiple,
+      current_sales = as.numeric(current_sales),
+      current_ebitda = as.numeric(current_ebitda),
+      current_ebitda_margin = current_ebitda / current_sales,
+      current_debt_ev_ratio = current_total_debt / current_enterprise_value,
+      current_capex = as.numeric(current_capex),
+      current_ebitda_capex = as.numeric(current_ebitda_capex),
+      current_covenants_breach,
+      current_on_interest,
+      debt_coupon_all_in_rate = as.numeric(debt_coupon_all_in_rate),
+      debt_coupon_everside_exposure = as.numeric(debt_coupon_everside_exposure),
+      at_close_leverage_everside_exposure,
+      current_leverage_everside_exposure,
+      close_leverage,
+      current_leverage,
+      debt_coupon_everside_exposure,
+      debt_coupon_cash_rate,
+      debt_coupon_pik_rate,
+      debt_coupon_all_in_rate
+    ) %>% 
+    filter(as_of_date %in% c(prior_quarter)) %>% 
+    collect() %>% 
+    data.table()
+  
+  Prior_Year_Everside_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Everside Dataset") %>% 
+    clean_names() %>%
+    mutate(
+      corrected_debt_cost = as.numeric(corrected_debt_cost),
+      corrected_debt_fmv = as.numeric(corrected_debt_fmv),
+      corrected_equity_cost = as.numeric(corrected_equity_cost),
+      corrected_equity_fmv = as.numeric(corrected_equity_fmv)
+    ) %>%
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      company_name,
+      industry,
+      geography,
+      date_of_investment = case_when(
+        str_length(date_of_investment) == 5 ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30"),
+        date_of_investment == "9/31/2022" ~ as.Date("2022-09-31", format = "%Y/%m/%d"),
+        TRUE ~ NA
+      ),
+      invested_debt = case_when(
+        corrected_debt_cost > 0 ~ corrected_debt_cost,
+        investment_vertical == "Directs" ~ everside_exposure_debt,
+        TRUE ~ as.numeric(invested_debt)
+      ),
+      invested_equity = case_when(
+        corrected_equity_cost > 0 ~ corrected_equity_cost,
+        investment_vertical == "Directs" ~ everside_exposure_equity,
+        TRUE ~ as.numeric(invested_equity)
+      ),
+      debt_realized_value = as.numeric(debt_realized_value),
+      equity_realized_value = as.numeric(equity_realized_value),
+      everside_percent_exposure = as.numeric(everside_percent_exposure),
+      debt_gaap_cost = as.numeric(debt_gaap_cost),
+      debt_fmv = case_when(
+        corrected_debt_fmv > 0 ~ corrected_debt_fmv,
+        TRUE ~ as.numeric(debt_fmv)
+      ),
+      equity_fmv = case_when(
+        corrected_equity_fmv > 0 ~ corrected_equity_fmv,
+        TRUE ~ as.numeric(equity_fmv)
+      ),
+      total_fmv = case_when(
+        corrected_total_fmv > 0 ~ corrected_total_fmv,
+        TRUE ~ total_fmv
+      ),
+      debt_pricing_cash,
+      debt_pricing_pik,
+      debt_pricing_total_coupon,
+      debt_pricing_maturity = case_when(
+        str_length(debt_pricing_maturity) == 5 ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+        TRUE ~ NA
+      ),
+      equity_pricing_equity_ownership_fd = as.numeric(equity_pricing_equity_ownership_fd),
+      at_close_senior_debt,
+      at_close_sr_debt_turns,
+      at_close_total_debt = as.numeric(at_close_total_debt),
+      at_close_total_debt_turns,
+      at_close_liquidity_cash_available_liquidity = as.numeric(at_close_liquidity_cash_available_liquidity),
+      at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+      at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+      at_close_ev_multiple,
+      at_close_sales = as.numeric(at_close_sales),
+      at_close_ebitda = as.numeric(at_close_ebitda),
+      at_close_ebitda_margin = at_close_ebitda / at_close_sales,
+      at_close_debt_ev_ratio = at_close_total_debt / at_close_enterprise_value,
+      current_senior_debt,
+      current_sr_debt_turns,
+      current_total_debt = as.numeric(current_total_debt),
+      current_total_debt_turns,
+      current_liquidity_cash_available_liquidity = as.numeric(current_liquidity_cash_available_liquidity),
+      current_fccr_current = as.numeric(current_fccr_current),
+      current_enterprise_value = as.numeric(current_enterprise_value),
+      current_ev_multiple,
+      current_sales = as.numeric(current_sales),
+      current_ebitda = as.numeric(current_ebitda),
+      current_ebitda_margin = current_ebitda / current_sales,
+      current_debt_ev_ratio = current_total_debt / current_enterprise_value,
+      current_capex = as.numeric(current_capex),
+      current_ebitda_capex = as.numeric(current_ebitda_capex),
+      current_covenants_breach,
+      current_on_interest,
+      debt_coupon_all_in_rate = as.numeric(debt_coupon_all_in_rate),
+      debt_coupon_everside_exposure = as.numeric(debt_coupon_everside_exposure),
+      at_close_leverage_everside_exposure,
+      current_leverage_everside_exposure,
+      close_leverage,
+      current_leverage,
+      debt_coupon_everside_exposure,
+      debt_coupon_cash_rate,
+      debt_coupon_pik_rate,
+      debt_coupon_all_in_rate
+    ) %>% 
+    filter(as_of_date %in% c(prior_year)) %>% 
+    collect() %>% 
+    data.table()
+  
+  Everside_Dataset <- merge(
+    merge(
+      Current_Everside_Dataset,
+      Prior_Quarter_Everside_Dataset,
+      by = c("fund", "table", "investment_vertical", "company_name"),
+      all.x = TRUE,
+      suffixes = c("", "_Prior_Quarter")
+    ),
+    Prior_Year_Everside_Dataset,
+    by = c("fund", "table", "investment_vertical", "company_name"),
+    all.x = TRUE,
+    suffixes = c("", "_Prior_Year")
+  )
+  
+  Current_IRR_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "IRR Dataset") %>% 
+    clean_names() %>% 
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      company_name,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      date_of_initial_investment = as.Date(date_of_initial_investment, origin = "1899-12-30"),
+      invested_debt,
+      realized_value_debt,
+      unrealized_value_debt,
+      invested_equity,
+      realized_value_equity,
+      unrealized_value_equity,
+      invested_total,
+      realized_value_total,
+      unrealized_value_total,
+      deployment_total = as.numeric(deployment_total),
+      commitment_total,
+      debt_gross_moic = as.numeric(debt_gross_moic),
+      debt_net_moic = as.numeric(debt_net_moic),
+      debt_gross_irr = as.numeric(debt_gross_irr),
+      debt_net_irr = as.numeric(debt_net_irr),
+      equity_gross_moic = as.numeric(equity_gross_moic),
+      equity_net_moic = as.numeric(equity_net_moic),
+      equity_gross_irr = as.numeric(equity_gross_irr),
+      equity_net_irr = as.numeric(equity_net_irr),
+      gross_moic = as.numeric(gross_moic),
+      net_moic = as.numeric(net_moic),
+      gross_irr = as.numeric(gross_irr),
+      net_irr = as.numeric(net_irr),
+    ) %>% 
+    filter(as_of_date %in% c(current_as_of_date))
+  
+  Prior_Quarter_IRR_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "IRR Dataset") %>% 
+    clean_names() %>% 
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      company_name,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      date_of_initial_investment = as.Date(date_of_initial_investment, origin = "1899-12-30"),
+      invested_debt,
+      realized_value_debt,
+      unrealized_value_debt,
+      invested_equity,
+      realized_value_equity,
+      unrealized_value_equity,
+      invested_total,
+      realized_value_total,
+      unrealized_value_total,
+      deployment_total = as.numeric(deployment_total),
+      commitment_total,
+      debt_gross_moic = as.numeric(debt_gross_moic),
+      debt_net_moic = as.numeric(debt_net_moic),
+      debt_gross_irr = as.numeric(debt_gross_irr),
+      debt_net_irr = as.numeric(debt_net_irr),
+      equity_gross_moic = as.numeric(equity_gross_moic),
+      equity_net_moic = as.numeric(equity_net_moic),
+      equity_gross_irr = as.numeric(equity_gross_irr),
+      equity_net_irr = as.numeric(equity_net_irr),
+      gross_moic = as.numeric(gross_moic),
+      net_moic = as.numeric(net_moic),
+      gross_irr = as.numeric(gross_irr),
+      net_irr = as.numeric(net_irr),
+    ) %>% 
+    filter(as_of_date %in% c(prior_quarter))
+  
+  Prior_Year_IRR_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "IRR Dataset") %>% 
+    clean_names() %>% 
+    transmute(
+      fund,
+      table,
+      investment_vertical,
+      company_name,
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      date_of_initial_investment = as.Date(date_of_initial_investment, origin = "1899-12-30"),
+      invested_debt,
+      realized_value_debt,
+      unrealized_value_debt,
+      invested_equity,
+      realized_value_equity,
+      unrealized_value_equity,
+      invested_total,
+      realized_value_total,
+      unrealized_value_total,
+      deployment_total = as.numeric(deployment_total),
+      commitment_total,
+      debt_gross_moic = as.numeric(debt_gross_moic),
+      debt_net_moic = as.numeric(debt_net_moic),
+      debt_gross_irr = as.numeric(debt_gross_irr),
+      debt_net_irr = as.numeric(debt_net_irr),
+      equity_gross_moic = as.numeric(equity_gross_moic),
+      equity_net_moic = as.numeric(equity_net_moic),
+      equity_gross_irr = as.numeric(equity_gross_irr),
+      equity_net_irr = as.numeric(equity_net_irr),
+      gross_moic = as.numeric(gross_moic),
+      net_moic = as.numeric(net_moic),
+      gross_irr = as.numeric(gross_irr),
+      net_irr = as.numeric(net_irr),
+    ) %>% 
+    filter(as_of_date %in% c(prior_year))
+  
+  IRR_Dataset <- merge(
+    merge(
+      Current_IRR_Dataset,
+      Prior_Quarter_IRR_Dataset,
+      by = c("fund", "table", "investment_vertical", "company_name"),
+      all.x = TRUE,
+      suffixes = c("", "_Prior_Quarter")
+    ),
+    Prior_Year_IRR_Dataset,
+    by = c("fund", "table", "investment_vertical", "company_name"),
+    all.x = TRUE,
+    suffixes = c("", "_Prior_Year")
+  )
+  
+  Current_Covenant_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Covenant Dataset") %>% 
+    clean_names() %>% 
+    mutate(
+      as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+      amendment_date = as.Date(amendment_date, origin = "1899-12-30")
+    ) %>% 
+    filter(
+      as_of_date %in% c(current_as_of_date)
+    )
+  
+  risk_buckets_portco_dataset <- Everside_Dataset %>%  
+    group_by(fund,
+             table,
+             investment_vertical,
+             as_of_date,
+             company_name) %>% 
+    rowwise() %>% 
+    mutate(
+      debt_valuation_risk_rating = case_when(
+        invested_debt == 0 ~ NA_real_,
+        # debt_realized_value >= invested_debt ~ NA_real_,
+        debt_fmv - invested_debt > -1 ~ 10,
+        round(debt_fmv / invested_debt, 2) < 1 ~ -2.5,
+        TRUE ~ NA_real_
+      ),
+      debt_valuation_par_score = case_when(
+        is.na(debt_valuation_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      equity_valuation_risk_rating = case_when(
+        invested_equity == 0 ~ NA_real_,
+        # equity_realized_value >= invested_equity ~ NA_real_,
+        round(equity_fmv / invested_equity, 2) < 0.75 ~ -2.5,
+        round(equity_fmv / invested_equity, 2) > 1.5 ~ 15,
+        round(equity_fmv / invested_equity, 2) > 1 ~ 12.5,
+        round(equity_fmv / invested_equity, 2) == 1 ~ 10,
+        # round(equity_fmv / invested_equity, 2) > -1 ~ 10,
+        round(equity_fmv / invested_equity, 2) >= 0.75 & round(equity_fmv / invested_equity, 2) < 1 ~ 5,
+        TRUE ~ NA_real_
+      ),
+      equity_valuation_par_score = case_when(
+        is.na(equity_valuation_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      debt_ev_risk_rating = case_when(
+        current_debt_ev_ratio > 0.8 ~ -2.5,
+        current_debt_ev_ratio > 0.7 ~ 5,
+        current_debt_ev_ratio > 0.6 ~ 10,
+        current_debt_ev_ratio >= 0.5 ~ 12.5,
+        current_debt_ev_ratio < 0.5 ~ 15,
+        TRUE ~ NA_real_
+      ),
+      debt_ev_par_score = case_when(
+        is.na(debt_ev_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      debt_ev_close_risk_rating = case_when(
+        ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) > 0.3 ~ -2.5,
+        ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) > 0.15 ~ 7.5,
+        ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) < 0.15 & ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) > -0.15 ~ 10,        
+        ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) < -0.3 ~ 15,
+        ((current_debt_ev_ratio - at_close_debt_ev_ratio) / (at_close_debt_ev_ratio)) <  -0.15 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      debt_ev_close_par_score = case_when(
+        is.na(debt_ev_close_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      debt_ev_prior_q_risk_rating = case_when(
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) > 0.3 ~ -2.5,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) > 0.15 ~ 7.5,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) < 0.15 & ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) > -0.15 ~ 10,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) < -0.3 ~ 15,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Quarter) / (current_debt_ev_ratio_Prior_Quarter)) <  -0.15 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      debt_ev_prior_q_par_score = case_when(
+        is.na(debt_ev_prior_q_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      debt_ev_prior_yr_risk_rating = case_when(
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) > 0.3 ~ -2.5,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) > 0.15 ~ 7.5,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) < 0.15 & ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) > -0.15 ~ 10,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) < -0.3 ~ 15,
+        ((current_debt_ev_ratio - current_debt_ev_ratio_Prior_Year) / (current_debt_ev_ratio_Prior_Year)) <  -0.15 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      debt_ev_prior_yr_par_score = case_when(
+        is.na(debt_ev_prior_yr_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      leverage_risk_rating = case_when(
+        current_ebitda < 0 ~ -2.5,
+        current_total_debt_turns > 8 ~ -2.5,
+        current_total_debt_turns > 6 ~ 5,
+        current_total_debt_turns > 4 ~ 10,
+        current_total_debt_turns > 3 ~ 12.5,
+        current_total_debt_turns <= 3 ~ 15,
+        TRUE ~ NA_real_
+      ),
+      leverage_par_score = case_when(
+        is.na(leverage_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      leverage_close_risk_rating = case_when(
+        current_ebitda < 0 ~ -2.5,
+        ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) > 1 ~ -2.5,
+        ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) > 0.5 ~ 7.5,
+        ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) <= 0.5 & ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) >= -0.25 ~ 10,
+        ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) < -0.5 ~ 15,
+        ((current_total_debt_turns - at_close_total_debt_turns)/ abs(at_close_total_debt_turns)) <  -0.25 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      leverage_close_par_score = case_when(
+        is.na(leverage_close_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      leverage_prior_q_risk_rating = case_when(
+        current_ebitda < 0 ~ -2.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) > 1 ~ -2.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) > 0.5 ~ 7.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) <= 0.5 & ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) >= -0.15 ~ 10,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) < -0.3 ~ 15,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Quarter)/ abs(current_total_debt_turns_Prior_Quarter)) <  -0.15 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      leverage_prior_q_par_score = case_when(
+        is.na(leverage_prior_q_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      leverage_prior_yr_risk_rating = case_when(
+        current_ebitda < 0 ~ -2.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) > 1 ~ -2.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) > 0.5 ~ 7.5,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) <= 0.5 & ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) >= -0.15 ~ 10,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) < -0.3 ~ 15,
+        ((current_total_debt_turns - current_total_debt_turns_Prior_Year)/ abs(current_total_debt_turns_Prior_Year)) <  -0.15 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      leverage_prior_yr_par_score = case_when(
+        is.na(leverage_prior_yr_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      interest_payment_risk_rating = case_when(
+        current_on_interest == "FALSE" | current_on_interest == FALSE ~ -2.5,
+        debt_coupon_all_in_rate == debt_coupon_pik_rate ~ 5,
+        current_on_interest == TRUE | current_on_interest == "TRUE" ~ 10,
+        debt_coupon_cash_rate > 0 ~ 10,
+        TRUE ~ NA_real_
+      ),
+      interest_payment_par_score = case_when(
+        is.na(interest_payment_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      upcoming_maturity_risk_rating = case_when(
+        invested_debt == 0 ~ NA_real_,
+        # debt_realized_value >= invested_debt ~ NA_real_,
+        debt_pricing_maturity < (add_with_rollback(current_as_of_date, months(6))) ~ 5,
+        debt_pricing_maturity <= (add_with_rollback(current_as_of_date, months(12))) ~ 7.5,
+        debt_pricing_maturity > (add_with_rollback(current_as_of_date, months(12))) ~ 10,
+        TRUE ~ NA_real_
+      ),
+      upcoming_maturity_par_score = case_when(
+        is.na(upcoming_maturity_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      sales_close_risk_rating = case_when(
+        ((current_sales - at_close_sales) / at_close_sales) > 0.3 ~ 15,
+        ((current_sales - at_close_sales) / at_close_sales) > 0.15 ~ 12.5,
+        ((current_sales - at_close_sales) / at_close_sales) <= 0.15 & ((current_sales - at_close_sales) / at_close_sales) >= -0.15 ~ 10,
+        ((current_sales - at_close_sales) / at_close_sales) < -0.3 ~ -2.5,
+        ((current_sales - at_close_sales) / at_close_sales) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      sales_close_par_score = case_when(
+        is.na(sales_close_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      sales_prior_q_risk_rating = case_when(
+        ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) > 0.3 ~ 15,
+        ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) > 0.15 ~ 12.5,
+        ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) <= 0.15 & ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) >= -0.15 ~ 10,
+        ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) < -0.3 ~ -2.5,
+        ((current_sales - current_sales_Prior_Quarter) / current_sales_Prior_Quarter) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      sales_prior_q_par_score = case_when(
+        is.na(sales_prior_q_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      sales_prior_yr_risk_rating = case_when(
+        ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) > 0.3 ~ 15,
+        ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) > 0.15 ~ 12.5,
+        ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) <= 0.15 & ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) >= -0.15 ~ 10,
+        ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) < -0.3 ~ -2.5,
+        ((current_sales - current_sales_Prior_Year) / current_sales_Prior_Year) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      sales_prior_yr_par_score = case_when(
+        is.na(sales_prior_yr_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_close_risk_rating = case_when(
+        ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) > 0.3 ~ 15,
+        ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) > 0.15 ~ 12.5,
+        ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) < 0.15 & ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) > -0.15 ~ 10,
+        ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) < -0.3 ~ -2.5,
+        ((current_ebitda - at_close_ebitda) / abs(at_close_ebitda)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_close_par_score = case_when(
+        is.na(ebitda_close_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_prior_q_risk_rating = case_when(
+        ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) > 0.3 ~ 15,
+        ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) > 0.15 ~ 12.5,
+        ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) <= 0.15 & ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) >= -0.15 ~ 10,
+        ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) < -0.3 ~ -2.5,
+        ((current_ebitda - current_ebitda_Prior_Quarter) / abs(current_ebitda_Prior_Quarter)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_prior_q_par_score = case_when(
+        is.na(ebitda_prior_q_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_prior_yr_risk_rating = case_when(
+        ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) > 0.3 ~ 15,
+        ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) > 0.15 ~ 12.5,
+        ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) <= 0.15 & ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) >= -0.15 ~ 10,
+        ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) < -0.3 ~ -2.5,
+        ((current_ebitda - current_ebitda_Prior_Year) / abs(current_ebitda_Prior_Year)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_prior_yr_par_score = case_when(
+        is.na(ebitda_prior_yr_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_margin_risk_rating = case_when(
+        current_ebitda_margin > 0.2 ~ 15,
+        current_ebitda_margin > 0.15 ~ 12.5,
+        current_ebitda_margin > 0.1 ~ 10,
+        current_ebitda_margin > 0.05 ~ 7.5,
+        current_ebitda_margin <= 0.05 ~ -2.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_margin_par_score = case_when(
+        is.na(ebitda_margin_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_margin_close_risk_rating = case_when(
+        ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) > 0.3 ~ 15,
+        ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) > 0.15 ~ 12.5,
+        ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) <= 0.15 & ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) >= -0.15 ~ 10,
+        ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) < -0.3 ~ -2.5,
+        ((current_ebitda_margin - at_close_ebitda_margin)/ abs(at_close_ebitda_margin)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_margin_close_par_score = case_when(
+        is.na(ebitda_margin_close_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_margin_prior_q_risk_rating = case_when(
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) > 0.3 ~ 15,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) > 0.15 ~ 12.5,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) <= 0.15 & ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) >= -0.15 ~ 10,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) < -0.3 ~ -2.5,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Quarter)/ abs(current_ebitda_margin_Prior_Quarter)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_margin_prior_q_par_score = case_when(
+        is.na(ebitda_margin_prior_q_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      ebitda_margin_prior_yr_risk_rating = case_when(
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) > 0.3 ~ 15,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) > 0.15 ~ 12.5,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) <= 0.15 & ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) >= -0.15 ~ 10,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) < -0.3 ~ -2.5,
+        ((current_ebitda_margin - current_ebitda_margin_Prior_Year)/ abs(current_ebitda_margin_Prior_Year)) <  -0.15 ~ 7.5,
+        TRUE ~ NA_real_
+      ),
+      ebitda_margin_prior_yr_par_score = case_when(
+        is.na(ebitda_margin_prior_yr_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      ),
+      non_direct_covenant_risk_rating = case_when(
+        investment_vertical == "Directs" ~ NA_real_,
+        invested_debt == 0 ~ NA_real_,
+        # debt_realized_value >= invested_debt ~ NA_real_,
+        current_covenants_breach == FALSE | current_covenants_breach == "FALSE" ~ -5,
+        current_covenants_breach == TRUE | current_covenants_breach == "TRUE" ~ 20,
+        TRUE ~ NA_real_
+      ),
+      non_direct_covenant_par_score = case_when(
+        is.na(non_direct_covenant_risk_rating) ~ NA_real_,
+        TRUE ~ 10
+      )
+    )
+  
+  risk_buckets_covenants <- Current_Covenant_Dataset %>% 
+    mutate(
+      cov_1_reported_value = as.numeric(cov_1_reported_value)
+    ) %>% 
+    mutate(
+      recent_amendment_risk_rating = case_when(
+        is.na(amendment_date) ~ NA_real_,
+        amendment_date >= add_with_rollback(current_as_of_date, months(-6)) ~ 5,
+        amendment_date >= add_with_rollback(current_as_of_date, months(-12)) ~ 7.5,
+        amendment_date < add_with_rollback(current_as_of_date, months(-12)) ~ 10,
+        TRUE ~ NA_real_
+      ),
+      recent_amendment_par_score = case_when(
+        is.na(recent_amendment_risk_rating) ~ 0,
+        is.na(amendment_date) ~ 0,
+        recent_amendment_risk_rating == 0 ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_1_compliance_risk_rating = case_when(
+        cov_1_include == FALSE ~ NA_real_,
+        cov_1_pass_fail == FALSE ~ -2.5,
+        cov_1_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_1_compliance_par_score = case_when(
+        is.na(covenant_1_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_2_compliance_risk_rating = case_when(
+        cov_2_include == FALSE ~ NA_real_,
+        cov_2_pass_fail == FALSE ~ -2.5,
+        cov_2_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_2_compliance_par_score = case_when(
+        is.na(covenant_2_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_3_compliance_risk_rating = case_when(
+        cov_3_include == FALSE ~ NA_real_,
+        cov_3_pass_fail == FALSE ~ -2.5,
+        cov_3_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_3_compliance_par_score = case_when(
+        is.na(covenant_3_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_4_compliance_risk_rating = case_when(
+        cov_4_include == FALSE ~ NA_real_,
+        cov_4_pass_fail == FALSE ~ -2.5,
+        cov_4_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_4_compliance_par_score = case_when(
+        is.na(covenant_4_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_5_compliance_risk_rating = case_when(
+        cov_5_include == FALSE ~ NA_real_,
+        cov_5_pass_fail == FALSE ~ -2.5,
+        cov_5_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_5_compliance_par_score = case_when(
+        is.na(covenant_5_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      covenant_6_compliance_risk_rating = case_when(
+        cov_6_include == FALSE ~ NA_real_,
+        cov_6_pass_fail == FALSE ~ -2.5,
+        cov_6_pass_fail == TRUE ~ 10,
+        TRUE ~ NA_real_
+      ),
+      covenant_6_compliance_par_score = case_when(
+        is.na(covenant_6_compliance_risk_rating) ~ 0,
+        TRUE ~ 10
+      ),
+      management_team_risk_rating = case_when(
+        management_team_score == 1 ~ -2.5,
+        management_team_score == 2 ~ 5,
+        management_team_score == 3 ~ 10,
+        management_team_score == 4 ~ 12.5,
+        management_team_score == 5 ~ 15,
+        TRUE ~ NA_real_
+      ),
+      management_team_par_score = 10,
+      cov_1_cushion = case_when(
+        cov_1_include == FALSE ~ NA_real_,
+        cov_1_above_below == "Above" ~ (cov_1_reported_value - cov_1_testing_level) / cov_1_testing_level,
+        cov_1_above_below == "Below" ~ (cov_1_testing_level - cov_1_reported_value) / cov_1_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_2_cushion = case_when(
+        cov_2_include == FALSE ~ NA_real_,
+        cov_2_above_below == "Above" ~ (cov_2_reported_value - cov_2_testing_level) / cov_2_testing_level,
+        cov_2_above_below == "Below" ~ (cov_2_testing_level - cov_2_reported_value) / cov_2_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_3_cushion = case_when(
+        cov_3_include == FALSE ~ NA_real_,
+        cov_3_above_below == "Above" ~ (cov_3_reported_value - cov_3_testing_level) / cov_3_testing_level,
+        cov_3_above_below == "Below" ~ (cov_3_testing_level - cov_3_reported_value) / cov_3_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_4_cushion = case_when(
+        cov_4_include == FALSE ~ NA_real_,
+        cov_4_above_below == "Above" ~ (cov_4_reported_value - cov_4_testing_level) / cov_4_testing_level,
+        cov_4_above_below == "Below" ~ (cov_4_testing_level - cov_4_reported_value) / cov_4_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_5_cushion = case_when(
+        cov_5_include == FALSE ~ NA_real_,
+        cov_5_above_below == "Above" ~ (cov_5_reported_value - cov_5_testing_level) / cov_5_testing_level,
+        cov_5_above_below == "Below" ~ (cov_5_testing_level - cov_5_reported_value) / cov_5_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_6_cushion = case_when(
+        cov_6_include == FALSE ~ NA_real_,
+        cov_6_above_below == "Above" ~ (cov_6_reported_value - cov_6_testing_level) / cov_6_testing_level,
+        cov_6_above_below == "Below" ~ (cov_6_testing_level - cov_6_reported_value) / cov_6_testing_level,
+        TRUE ~ NA_real_
+      ),
+      cov_1_cushion_risk_rating = case_when(
+        cov_1_pass_fail == FALSE | cov_1_pass_fail == "FALSE" ~ -2.5,
+        cov_1_cushion < 0.1 ~ 5,
+        cov_1_cushion < 0.2 ~ 10,
+        cov_1_cushion < 0.3 ~ 11,
+        cov_1_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      cov_2_cushion_risk_rating = case_when(
+        cov_2_pass_fail == FALSE | cov_2_pass_fail == "FALSE" ~ -2.5,
+        cov_2_cushion < 0.1 ~ 5,
+        cov_2_cushion < 0.2 ~ 10,
+        cov_2_cushion < 0.3 ~ 11,
+        cov_2_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      cov_3_cushion_risk_rating = case_when(
+        cov_3_pass_fail == FALSE | cov_3_pass_fail == "FALSE" ~ -2.5,
+        cov_3_cushion < 0.1 ~ 5,
+        cov_3_cushion < 0.2 ~ 10,
+        cov_3_cushion < 0.3 ~ 11,
+        cov_3_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      cov_4_cushion_risk_rating = case_when(
+        cov_4_pass_fail == FALSE | cov_4_pass_fail == "FALSE" ~ -2.5,
+        cov_4_cushion < 0.1 ~ 5,
+        cov_4_cushion < 0.2 ~ 10,
+        cov_4_cushion < 0.3 ~ 11,
+        cov_4_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      cov_5_cushion_risk_rating = case_when(
+        cov_5_pass_fail == FALSE | cov_5_pass_fail == "FALSE" ~ -2.5,
+        cov_5_cushion < 0.1 ~ 5,
+        cov_5_cushion < 0.2 ~ 10,
+        cov_5_cushion < 0.3 ~ 11,
+        cov_5_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      ),
+      cov_6_cushion_risk_rating = case_when(
+        cov_6_pass_fail == FALSE | cov_6_pass_fail == "FALSE" ~ -2.5,
+        cov_6_cushion < 0.1 ~ 5,
+        cov_6_cushion < 0.2 ~ 10,
+        cov_6_cushion < 0.3 ~ 11,
+        cov_6_cushion >= 0.3 ~ 12.5,
+        TRUE ~ NA_real_
+      )
+    )
+  
+  full_risk_ratings <- merge(
+    risk_buckets_portco_dataset,
+    risk_buckets_covenants,
+    by = c("as_of_date", "company_name"),
+    all.x = TRUE
+  )  %>% 
+    group_by(
+      as_of_date,
+      fund,
+      investment_vertical,
+      table,
+      company_name
+    ) %>% 
+    mutate(
+      debt_valuation_score = ifelse(
+        is.na(debt_valuation_risk_rating),
+        NA_real_,
+        (debt_valuation_risk_rating * 1.25) / (debt_valuation_par_score * 1.25)
+      ),
+      equity_valuation_score = ifelse(
+        is.na(equity_valuation_risk_rating),
+        NA_real_,
+        (equity_valuation_risk_rating * 1.25) / (equity_valuation_par_score * 1.25)
+      ),
+      total_valuation_metrics_score_value = (ifelse(is.na((debt_valuation_risk_rating * 1.25)),0,(debt_valuation_risk_rating * 1.25)) + ifelse(is.na((equity_valuation_risk_rating * 1.25)),0,(equity_valuation_risk_rating * 1.25))),
+      total_valuation_metrics_par_value = (ifelse(is.na((debt_valuation_par_score * 1.25)),0,(debt_valuation_par_score * 1.25)) + ifelse(is.na((equity_valuation_par_score * 1.25)),0,(equity_valuation_par_score * 1.25))),
+      total_valuation_metrics = total_valuation_metrics_score_value / total_valuation_metrics_par_value,
+      debt_ev_valuation_score = ifelse(
+        is.na(debt_ev_risk_rating),
+        NA_real_,
+        (debt_ev_risk_rating * 1.25) / (debt_ev_par_score * 1.25)
+      ),
+      debt_ev_close_valuation_score = ifelse(
+        is.na(debt_ev_close_risk_rating),
+        NA_real_,
+        (debt_ev_close_risk_rating * 0.75) / (debt_ev_close_par_score * 0.75)
+      ),
+      debt_ev_prior_q_valuation_score = ifelse(
+        is.na(debt_ev_prior_q_risk_rating),
+        NA_real_,
+        (debt_ev_prior_q_risk_rating * 0.75) / (debt_ev_prior_q_par_score * 0.75)
+      ),
+      debt_ev_prior_yr_valuation_score = ifelse(
+        is.na(debt_ev_prior_yr_risk_rating),
+        NA_real_,
+        (debt_ev_prior_yr_risk_rating * 0.75) / (debt_ev_prior_yr_par_score * 0.75)
+      ),
+      total_debt_ev_metrics_score_value = (ifelse(is.na((debt_ev_close_risk_rating * 0.75)),0,(debt_ev_close_risk_rating * 0.75))*0.8 + ifelse(is.na((debt_ev_prior_q_risk_rating * 0.75)),0,(debt_ev_prior_q_risk_rating * 0.75))*0.1 + ifelse(is.na((debt_ev_prior_yr_risk_rating * 0.75)),0,(debt_ev_prior_yr_risk_rating * 0.75))*0.1),
+      total_debt_ev_metrics_par_value = (ifelse(is.na((debt_ev_close_par_score * 0.75)),0,(debt_ev_close_par_score * 0.75))*0.8 + ifelse(is.na((debt_ev_prior_q_par_score * 0.75)),0,(debt_ev_prior_q_par_score * 0.75))*0.1 + ifelse(is.na((debt_ev_prior_yr_par_score * 0.75)),0,(debt_ev_prior_yr_par_score * 0.75))*0.1),
+      total_debt_ev_metrics =  total_debt_ev_metrics_score_value / total_debt_ev_metrics_par_value,
+      leverage_valuation_score = ifelse(
+        is.na(leverage_risk_rating),
+        NA_real_,
+        (leverage_risk_rating * 1.5) / (leverage_par_score * 1.5)
+      ),
+      leverage_close_valuation_score = ifelse(
+        is.na(leverage_close_risk_rating),
+        NA_real_,
+        (leverage_close_risk_rating * 1) / (leverage_close_par_score * 1)
+      ),
+      leverage_prior_q_valuation_score = ifelse(
+        is.na(leverage_prior_q_risk_rating),
+        NA_real_,
+        (leverage_prior_q_risk_rating * 1) / (leverage_prior_q_par_score * 1)
+      ),
+      leverage_prior_yr_valuation_score = ifelse(
+        is.na(leverage_prior_yr_risk_rating),
+        NA_real_,
+        (leverage_prior_yr_risk_rating * 1) / (leverage_prior_yr_par_score * 1)
+      ),
+      total_leverage_metrics_score_value = (ifelse(is.na((leverage_close_risk_rating * 1)),0,(leverage_close_risk_rating * 1))*0.8 + ifelse(is.na((leverage_prior_q_risk_rating * 1)),0,(leverage_prior_q_risk_rating * 1))*0.1 + ifelse(is.na((leverage_prior_yr_risk_rating * 1)),0,(leverage_prior_yr_risk_rating * 1))*0.1),
+      total_leverage_metrics_par_value = (ifelse(is.na((leverage_close_par_score * 1)),0,(leverage_close_par_score * 1))*0.8 + ifelse(is.na((leverage_prior_q_par_score * 1)),0,(leverage_prior_q_par_score * 1))*0.1 + ifelse(is.na((leverage_prior_yr_par_score * 1)),0,(leverage_prior_yr_par_score * 1))*0.1),
+      total_leverage_metrics = total_leverage_metrics_score_value / total_leverage_metrics_par_value,
+      total_capital_structure_metrics_score_value = (ifelse(is.na((debt_ev_risk_rating * 1.25)),0,(debt_ev_risk_rating * 1.25)) + ifelse(is.na((debt_ev_close_risk_rating * 0.75)),0,(debt_ev_close_risk_rating * 0.75))*0.8 + ifelse(is.na((debt_ev_prior_q_risk_rating * 0.75)),0,(debt_ev_prior_q_risk_rating * 0.75))*0.1 + ifelse(is.na((debt_ev_prior_yr_risk_rating * 0.75)),0,(debt_ev_prior_yr_risk_rating * 0.75))*0.1 + ifelse(is.na((leverage_risk_rating * 1.5)),0,(leverage_risk_rating * 1.5)) + ifelse(is.na((leverage_close_risk_rating * 1)),0,(leverage_close_risk_rating * 1))*0.8 + ifelse(is.na((leverage_prior_q_risk_rating * 1)),0,(leverage_prior_q_risk_rating * 1))*0.1 + ifelse(is.na((leverage_prior_yr_risk_rating * 1)),0,(leverage_prior_yr_risk_rating * 1))*0.1),
+      total_capital_structure_metrics_par_value = (ifelse(is.na((debt_ev_par_score * 1.25)),0,(debt_ev_par_score * 1.25)) + ifelse(is.na((debt_ev_close_par_score * 0.75)),0,(debt_ev_close_par_score * 0.75))*0.8 + ifelse(is.na((debt_ev_prior_q_par_score * 0.75)),0,(debt_ev_prior_q_par_score * 0.75))*0.1 + ifelse(is.na((debt_ev_prior_yr_par_score * 0.75)),0,(debt_ev_prior_yr_par_score * 0.75))*0.1 + ifelse(is.na((leverage_par_score * 1.5)),0,(leverage_par_score * 1.5)) + ifelse(is.na((leverage_close_par_score * 1)),0,(leverage_close_par_score * 1))*0.8 + ifelse(is.na((leverage_prior_q_par_score * 1)),0,(leverage_prior_q_par_score * 1))*0.1 + ifelse(is.na((leverage_prior_yr_par_score * 1)),0,(leverage_prior_yr_par_score * 1))*0.1),
+      total_capital_structure_metrics = total_capital_structure_metrics_score_value / total_capital_structure_metrics_par_value,
+      covenant_compliance_score = case_when(
+        investment_vertical != "Directs" ~ NA_real_,
+        count_of_covenant_tests == 0 | is.na(count_of_covenant_tests) ~ NA_real_,
+        covenant_1_compliance_risk_rating == -2.5 ~ -5,
+        covenant_2_compliance_risk_rating == -2.5 ~ -5,
+        covenant_3_compliance_risk_rating == -2.5 ~ -5,
+        covenant_4_compliance_risk_rating == -2.5 ~ -5,
+        covenant_5_compliance_risk_rating == -2.5 ~ -5,
+        covenant_6_compliance_risk_rating == -2.5 ~ -5,
+        TRUE ~ 20
+      ),
+      non_direct_covenant_valuation_score = ifelse(
+        investment_vertical == "Directs" | is.na(non_direct_covenant_risk_rating),
+        NA_real_,
+        (non_direct_covenant_risk_rating * 1) / (non_direct_covenant_par_score * 1)
+      ),
+      total_covenant_compliance_valuation_score_value = case_when(
+        investment_vertical != "Directs" ~ non_direct_covenant_valuation_score,
+        TRUE ~ covenant_compliance_score
+      ),
+      total_covenant_compliance_valuation_par_value = case_when(
+        investment_vertical != "Directs" ~ non_direct_covenant_par_score,
+        investment_vertical == "Directs" & !is.na(total_covenant_compliance_valuation_score_value) ~ 20,
+        TRUE ~ NA_real_
+      ),
+      total_covenant_compliance_valuation = total_covenant_compliance_valuation_score_value / total_covenant_compliance_valuation_par_value,
+      covenant_cushion_score = case_when(
+        investment_vertical != "Directs" ~ NA_real_,
+        count_of_covenant_tests == 0 | is.na(count_of_covenant_tests) ~ NA_real_,
+        cov_1_cushion_risk_rating == -2.5 ~ -2.5,
+        cov_2_cushion_risk_rating == -2.5 ~ -2.5,
+        cov_3_cushion_risk_rating == -2.5 ~ -2.5,
+        cov_4_cushion_risk_rating == -2.5 ~ -2.5,
+        cov_5_cushion_risk_rating == -2.5 ~ -2.5,
+        cov_6_cushion_risk_rating == -2.5 ~ -2.5,
+        TRUE ~ (ifelse(is.na(cov_1_cushion_risk_rating),0,cov_1_cushion_risk_rating) + ifelse(is.na(cov_2_cushion_risk_rating),0,cov_2_cushion_risk_rating) + ifelse(is.na(cov_3_cushion_risk_rating),0,cov_3_cushion_risk_rating) + ifelse(is.na(cov_4_cushion_risk_rating),0,cov_4_cushion_risk_rating) + ifelse(is.na(cov_5_cushion_risk_rating),0,cov_5_cushion_risk_rating) + ifelse(is.na(cov_6_cushion_risk_rating),0,cov_6_cushion_risk_rating)) / count_of_covenant_tests
+      ),
+      non_direct_covenant_valuation_score = ifelse(
+        investment_vertical == "Directs" | is.na(non_direct_covenant_risk_rating),
+        NA_real_,
+        (non_direct_covenant_risk_rating * 1) / (non_direct_covenant_par_score * 1)
+      ),
+      total_covenant_cushion_valuation_score_value = case_when(
+        investment_vertical != "Directs" ~ non_direct_covenant_valuation_score,
+        TRUE ~ covenant_cushion_score
+      ),
+      total_covenant_cushion_valuation_par_value = case_when(
+        investment_vertical != "Directs" ~ non_direct_covenant_par_score,
+        investment_vertical == "Directs" & covenant_cushion_score >= -2.5 ~ 10,
+        TRUE ~ NA_real_
+      ),
+      total_covenant_cushion_valuation = total_covenant_cushion_valuation_score_value / total_covenant_cushion_valuation_par_value,
+      interest_payment_valuation_score = ifelse(
+        is.na(interest_payment_risk_rating),
+        NA_real_,
+        (interest_payment_risk_rating * 1) / (interest_payment_par_score * 1)
+      ),
+      upcoming_maturity_valuation_score = ifelse(
+        is.na(upcoming_maturity_risk_rating),
+        NA_real_,
+        (upcoming_maturity_risk_rating * 1) / (upcoming_maturity_par_score * 1)
+      ),
+      recent_amendment_valuation_score = ifelse(
+        is.na(recent_amendment_risk_rating) | recent_amendment_risk_rating == 0,
+        NA_real_,
+        (recent_amendment_risk_rating * 1) / (recent_amendment_par_score * 1)
+      ),
+      total_covenant_valuation_score_value = case_when(
+        invested_debt == 0 ~ NA_real_,
+        # debt_realized_value > invested_debt ~ NA_real_,
+        investment_vertical != "Directs" ~ (ifelse(is.na(non_direct_covenant_valuation_score),0,non_direct_covenant_valuation_score) + ifelse(is.na(interest_payment_risk_rating * 1),0,interest_payment_risk_rating * 1) + ifelse(is.na(upcoming_maturity_risk_rating * 1),0,upcoming_maturity_risk_rating * 1) + ifelse(is.na(recent_amendment_risk_rating * 1),0,recent_amendment_risk_rating * 1)),
+        TRUE ~ (ifelse(is.na(total_covenant_compliance_valuation_score_value),0,total_covenant_compliance_valuation_score_value) + ifelse(is.na(total_covenant_cushion_valuation_score_value),0,total_covenant_cushion_valuation_score_value) + ifelse(is.na(interest_payment_risk_rating * 1),0,interest_payment_risk_rating * 1) + ifelse(is.na(upcoming_maturity_risk_rating * 1),0,upcoming_maturity_risk_rating * 1) + ifelse(is.na(recent_amendment_risk_rating * 1),0,recent_amendment_risk_rating * 1))
+      ),
+      total_covenant_valuation_par_value = case_when(
+        invested_debt == 0 ~ NA_real_,
+        # debt_realized_value > invested_debt ~ NA_real_,
+        investment_vertical != "Directs" ~ (ifelse(is.na((total_covenant_compliance_valuation_par_value * 1)),0,(total_covenant_compliance_valuation_par_value * 1)) + ifelse(is.na(interest_payment_par_score * 1),0,(interest_payment_par_score * 1)) + ifelse(is.na(upcoming_maturity_par_score * 1),0,(upcoming_maturity_par_score * 1)) + ifelse(is.na(recent_amendment_par_score * 1),0,(recent_amendment_par_score * 1))),
+        TRUE ~ (ifelse(is.na(total_covenant_compliance_valuation_par_value),0,total_covenant_compliance_valuation_par_value) + ifelse(is.na(total_covenant_cushion_valuation_par_value),0,total_covenant_cushion_valuation_par_value) + ifelse(is.na(interest_payment_par_score * 1),0,(interest_payment_par_score * 1)) + ifelse(is.na(upcoming_maturity_par_score * 1),0,(upcoming_maturity_par_score * 1)) + ifelse(is.na(recent_amendment_par_score * 1),0,(recent_amendment_par_score * 1)))
+      ),
+      total_covenant_valuation = total_covenant_valuation_score_value / total_covenant_valuation_par_value,
+      sales_close_valuation_score = ifelse(
+        is.na(sales_close_risk_rating),
+        NA_real_,
+        (sales_close_risk_rating * 1) / (sales_close_par_score * 1)
+      ),
+      sales_prior_q_valuation_score = ifelse(
+        is.na(sales_prior_q_risk_rating),
+        NA_real_,
+        (sales_prior_q_risk_rating * 1) / (sales_prior_q_par_score * 1)
+      ),
+      sales_prior_yr_valuation_score = ifelse(
+        is.na(sales_prior_yr_risk_rating),
+        NA_real_,
+        (sales_prior_yr_risk_rating * 1) / (sales_prior_yr_par_score * 1)
+      ),
+      total_sales_valuation_score_value = (ifelse(is.na((sales_close_risk_rating * 1)),0,(sales_close_risk_rating * 1))*0.8 + ifelse(is.na((sales_prior_q_risk_rating * 1)),0,(sales_prior_q_risk_rating * 1))*0.1 + ifelse(is.na((sales_prior_yr_risk_rating * 1)),0,(sales_prior_yr_risk_rating * 1))*0.1),
+      total_sales_valuation_par_score = (ifelse(is.na((sales_close_par_score * 1)),0,(sales_close_par_score * 1))*0.8 + ifelse(is.na((sales_prior_q_par_score * 1)),0,(sales_prior_q_par_score * 1))*0.1 + ifelse(is.na((sales_prior_yr_par_score * 1)),0,(sales_prior_yr_par_score * 1))*0.1),
+      total_sales_valuation = total_sales_valuation_score_value / total_sales_valuation_par_score,
+      ebitda_close_valuation_score = ifelse(
+        is.na(ebitda_close_risk_rating),
+        NA_real_,
+        (ebitda_close_risk_rating * 1.25) / (ebitda_close_par_score * 1.25)
+      ),
+      ebitda_prior_q_valuation_score = ifelse(
+        is.na(ebitda_prior_q_risk_rating),
+        NA_real_,
+        (ebitda_prior_q_risk_rating * 1.25) / (ebitda_prior_q_par_score * 1.25)
+      ),
+      ebitda_prior_yr_valuation_score = ifelse(
+        is.na(ebitda_prior_yr_risk_rating),
+        NA_real_,
+        (ebitda_prior_yr_risk_rating * 1.25) / (ebitda_prior_yr_par_score * 1.25)
+      ),
+      total_ebitda_valuation_score_value = (ifelse(is.na((ebitda_close_risk_rating * 1.25)),0,(ebitda_close_risk_rating * 1.25))*0.8 + ifelse(is.na((ebitda_prior_q_risk_rating * 1.25)),0,(ebitda_prior_q_risk_rating * 1.25))*0.1 + ifelse(is.na((ebitda_prior_yr_risk_rating * 1.25)),0,(ebitda_prior_yr_risk_rating * 1.25))*0.1),
+      total_ebitda_valuation_par_value = (ifelse(is.na((ebitda_close_par_score * 1.25)),0,(ebitda_close_par_score * 1.25))*0.8 + ifelse(is.na((ebitda_prior_q_par_score * 1.25)),0,(ebitda_prior_q_par_score * 1.25))*0.1 + ifelse(is.na((ebitda_prior_yr_par_score * 1.25)),0,(ebitda_prior_yr_par_score * 1.25))*0.1),
+      total_ebitda_valuation = total_ebitda_valuation_score_value / total_ebitda_valuation_par_value,
+      ebitda_margin_valuation_score = ifelse(
+        is.na(ebitda_margin_risk_rating),
+        NA_real_,
+        (ebitda_margin_risk_rating * 1.5) / (ebitda_margin_par_score * 1.5)
+      ),
+      ebitda_margin_close_valuation_score = ifelse(
+        is.na(ebitda_margin_close_risk_rating),
+        NA_real_,
+        (ebitda_margin_close_risk_rating * 1.5) / (ebitda_margin_close_par_score * 1.5)
+      ),
+      ebitda_margin_prior_q_valuation_score = ifelse(
+        is.na(ebitda_margin_prior_q_risk_rating),
+        NA_real_,
+        (ebitda_margin_prior_q_risk_rating * 1.5) / (ebitda_margin_prior_q_par_score * 1.5)
+      ),
+      ebitda_margin_prior_yr_valuation_score = ifelse(
+        is.na(ebitda_margin_prior_yr_risk_rating),
+        NA_real_,
+        (ebitda_margin_prior_yr_risk_rating * 1.5) / (ebitda_margin_prior_yr_par_score * 1.5)
+      ),
+      total_ebitda_margin_valuation_score_value = (ifelse(is.na((ebitda_margin_close_risk_rating * 1.5)),0,(ebitda_margin_close_risk_rating * 1.5))*0.8 + ifelse(is.na((ebitda_margin_prior_q_risk_rating * 1.5)),0,(ebitda_margin_prior_q_risk_rating * 1.5))*0.1 + ifelse(is.na((ebitda_margin_prior_yr_risk_rating * 1.5)),0,(ebitda_margin_prior_yr_risk_rating * 1.5))*0.1),
+      total_ebitda_margin_valuation_par_value = (ifelse(is.na((ebitda_margin_close_par_score * 1.5)),0,(ebitda_margin_close_par_score * 1.5))*0.8 + ifelse(is.na((ebitda_margin_prior_q_par_score * 1.5)),0,(ebitda_margin_prior_q_par_score * 1.5))*0.1 + ifelse(is.na((ebitda_margin_prior_yr_par_score * 1.5)),0,(ebitda_margin_prior_yr_par_score * 1.5))*0.1),
+      total_ebitda_margin_valuation = total_ebitda_margin_valuation_score_value / total_ebitda_margin_valuation_par_value,
+      total_financial_valuation_score_value = (ifelse(is.na((sales_close_risk_rating * 1)),0,(sales_close_risk_rating * 1))*0.8 + ifelse(is.na((sales_prior_q_risk_rating * 1)),0,(sales_prior_q_risk_rating * 1))*0.1 + ifelse(is.na((sales_prior_yr_risk_rating * 1)),0,(sales_prior_yr_risk_rating * 1))*0.1 + ifelse(is.na((ebitda_close_risk_rating * 1.25)),0,(ebitda_close_risk_rating * 1.25))*0.8 + ifelse(is.na((ebitda_prior_q_risk_rating * 1.25)),0,(ebitda_prior_q_risk_rating * 1.25))*0.1 + ifelse(is.na((ebitda_prior_yr_risk_rating * 1.25)),0,(ebitda_prior_yr_risk_rating * 1.25))*0.1 + ifelse(is.na((ebitda_margin_risk_rating * 1.5)),0,(ebitda_margin_risk_rating * 1.5)) + ifelse(is.na((ebitda_margin_close_risk_rating * 1.5)),0,(ebitda_margin_close_risk_rating * 1.5))*0.8 + ifelse(is.na((ebitda_margin_prior_q_risk_rating * 1.5)),0,(ebitda_margin_prior_q_risk_rating * 1.5))*0.1 + ifelse(is.na((ebitda_margin_prior_yr_risk_rating * 1.5)),0,(ebitda_margin_prior_yr_risk_rating * 1.5))*0.1),
+      total_financial_valuation_par_value = (ifelse(is.na((sales_close_par_score * 1)),0,(sales_close_par_score * 1))*0.8 + ifelse(is.na((sales_prior_q_par_score * 1)),0,(sales_prior_q_par_score * 1))*0.1 + ifelse(is.na((sales_prior_yr_par_score * 1)),0,(sales_prior_yr_par_score * 1))*0.1 + ifelse(is.na((ebitda_close_par_score * 1.25)),0,(ebitda_close_par_score * 1.25))*0.8 + ifelse(is.na((ebitda_prior_q_par_score * 1.25)),0,(ebitda_prior_q_par_score * 1.25))*0.1 + ifelse(is.na((ebitda_prior_yr_par_score * 1.25)),0,(ebitda_prior_yr_par_score * 1.25))*0.1 + ifelse(is.na((ebitda_margin_par_score * 1.5)),0,(ebitda_margin_par_score * 1.5)) +  ifelse(is.na((ebitda_margin_close_par_score * 1.5)),0,(ebitda_margin_close_par_score * 1.5))*0.8 + ifelse(is.na((ebitda_margin_prior_q_par_score * 1.5)),0,(ebitda_margin_prior_q_par_score * 1.5))*0.1 + ifelse(is.na((ebitda_margin_prior_yr_par_score * 1.5)),0,(ebitda_margin_prior_yr_par_score * 1.5))*0.1),
+      total_financial_valuation = total_financial_valuation_score_value / total_financial_valuation_par_value,
+      total_management_team_score_value = (ifelse(is.na((management_team_risk_rating * 1.5)),0,(management_team_risk_rating * 1.5))),
+      total_management_team_par_value = (ifelse(is.na((management_team_par_score * 1.5)),0,(management_team_par_score * 1.5))),
+      total_management_team_value = total_management_team_score_value / total_management_team_par_value,
+      total_qualitative_metrics = total_management_team_value,
+      total_score_value = total_valuation_metrics_score_value + total_capital_structure_metrics_score_value + ifelse(is.na(total_covenant_valuation_score_value),0,total_covenant_valuation_score_value) + total_financial_valuation_score_value + total_management_team_score_value,
+      total_par_value = total_valuation_metrics_par_value + total_capital_structure_metrics_par_value + ifelse(is.na(total_covenant_valuation_par_value),0,total_covenant_valuation_par_value) + total_financial_valuation_par_value + total_management_team_par_value,
+      total_score = total_score_value / total_par_value
+    ) %>% 
+    ungroup()
+  
+  full_risk_ratings_for_export <<- full_risk_ratings %>% 
+    select(
+      -industry,
+      -geography,
+      -industry_Prior_Quarter,
+      -geography_Prior_Quarter,
+      -industry_Prior_Year,
+      -geography_Prior_Year
+    ) %>% 
+    arrange(
+      investment_vertical,
+      date_of_investment
+    )
+  
+  # directs_first_investment_date <- full_risk_ratings_for_export %>% 
+  #   filter(investment_vertical == "Directs") %>% 
+  #   group_by(company_name) %>% 
+  #   summarize(first_investment = min(date_of_investment)) %>% 
+  #   ungroup()
+  # 
+  # full_risk_ratings_for_export_directs_cleansed <<- merge(
+  #   full_risk_ratings_for_export,
+  #   directs_first_investment_date,
+  #   by = "company_name",
+  #   all.x = TRUE
+  # ) %>% 
+  #   filter(
+  #     investment_vertical != "Directs" |
+  #       date_of_investment == first_investment
+  #   ) %>% 
+  #   select(
+  #     -first_investment
+  #   ) %>% 
+  #   select(
+  #     as_of_date,
+  #     company_name,
+  #     fund,
+  #     table,
+  #     investment_vertical,
+  #     date_of_investment,
+  #     invested_debt,
+  #     invested_equity,
+  #     debt_realized_value,
+  #     equity_realized_value,
+  #     everside_percent_exposure,
+  #     debt_gaap_cost,
+  #     debt_fmv,
+  #     equity_fmv,
+  #     total_fmv,
+  #     debt_pricing_cash,
+  #     debt_pricing_pik,
+  #     debt_pricing_total_coupon,
+  #     debt_pricing_maturity,
+  #     equity_pricing_equity_ownership_fd,
+  #     at_close_senior_debt,
+  #     at_close_sr_debt_turns,
+  #     at_close_total_debt,
+  #     at_close_total_debt_turns,
+  #     at_close_liquidity_cash_available_liquidity,
+  #     at_close_fccr_covenants,
+  #     at_close_enterprise_value,
+  #     at_close_ev_multiple,
+  #     at_close_sales,
+  #     at_close_ebitda,
+  #     at_close_ebitda_margin,
+  #     at_close_debt_ev_ratio,
+  #     current_senior_debt,
+  #     current_sr_debt_turns,
+  #     current_total_debt,
+  #     current_total_debt_turns,
+  #     current_liquidity_cash_available_liquidity,
+  #     current_fccr_current,
+  #     current_enterprise_value,
+  #     current_ev_multiple,
+  #     current_sales,
+  #     current_ebitda,
+  #     current_ebitda_margin,
+  #     current_debt_ev_ratio,
+  #     current_capex,
+  #     current_ebitda_capex,
+  #     current_covenants_breach,
+  #     current_on_interest,
+  #     debt_coupon_all_in_rate,
+  #     debt_coupon_everside_exposure,
+  #     at_close_leverage_everside_exposure,
+  #     current_leverage_everside_exposure,
+  #     close_leverage,
+  #     current_leverage,
+  #     debt_coupon_cash_rate,
+  #     debt_coupon_pik_rate,
+  #     as_of_date_Prior_Quarter,
+  #     date_of_investment_Prior_Quarter,
+  #     invested_debt_Prior_Quarter,
+  #     invested_equity_Prior_Quarter,
+  #     debt_realized_value_Prior_Quarter,
+  #     equity_realized_value_Prior_Quarter,
+  #     everside_percent_exposure_Prior_Quarter,
+  #     debt_gaap_cost_Prior_Quarter,
+  #     debt_fmv_Prior_Quarter,
+  #     equity_fmv_Prior_Quarter,
+  #     total_fmv_Prior_Quarter,
+  #     debt_pricing_cash_Prior_Quarter,
+  #     debt_pricing_pik_Prior_Quarter,
+  #     debt_pricing_total_coupon_Prior_Quarter,
+  #     debt_pricing_maturity_Prior_Quarter,
+  #     equity_pricing_equity_ownership_fd_Prior_Quarter,
+  #     at_close_senior_debt_Prior_Quarter,
+  #     at_close_sr_debt_turns_Prior_Quarter,
+  #     at_close_total_debt_Prior_Quarter,
+  #     at_close_total_debt_turns_Prior_Quarter,
+  #     at_close_liquidity_cash_available_liquidity_Prior_Quarter,
+  #     at_close_fccr_covenants_Prior_Quarter,
+  #     at_close_enterprise_value_Prior_Quarter,
+  #     at_close_ev_multiple_Prior_Quarter,
+  #     at_close_sales_Prior_Quarter,
+  #     at_close_ebitda_Prior_Quarter,
+  #     at_close_ebitda_margin_Prior_Quarter,
+  #     at_close_debt_ev_ratio_Prior_Quarter,
+  #     current_senior_debt_Prior_Quarter,
+  #     current_sr_debt_turns_Prior_Quarter,
+  #     current_total_debt_Prior_Quarter,
+  #     current_total_debt_turns_Prior_Quarter,
+  #     current_liquidity_cash_available_liquidity_Prior_Quarter,
+  #     current_fccr_current_Prior_Quarter,
+  #     current_enterprise_value_Prior_Quarter,
+  #     current_ev_multiple_Prior_Quarter,
+  #     current_sales_Prior_Quarter,
+  #     current_ebitda_Prior_Quarter,
+  #     current_ebitda_margin_Prior_Quarter,
+  #     current_debt_ev_ratio_Prior_Quarter,
+  #     current_capex_Prior_Quarter,
+  #     current_ebitda_capex_Prior_Quarter,
+  #     current_covenants_breach_Prior_Quarter,
+  #     current_on_interest_Prior_Quarter,
+  #     debt_coupon_all_in_rate_Prior_Quarter,
+  #     debt_coupon_everside_exposure_Prior_Quarter,
+  #     at_close_leverage_everside_exposure_Prior_Quarter,
+  #     current_leverage_everside_exposure_Prior_Quarter,
+  #     close_leverage_Prior_Quarter,
+  #     current_leverage_Prior_Quarter,
+  #     debt_coupon_cash_rate_Prior_Quarter,
+  #     debt_coupon_pik_rate_Prior_Quarter,
+  #     as_of_date_Prior_Year,
+  #     date_of_investment_Prior_Year,
+  #     invested_debt_Prior_Year,
+  #     invested_equity_Prior_Year,
+  #     debt_realized_value_Prior_Year,
+  #     equity_realized_value_Prior_Year,
+  #     everside_percent_exposure_Prior_Year,
+  #     debt_gaap_cost_Prior_Year,
+  #     debt_fmv_Prior_Year,
+  #     equity_fmv_Prior_Year,
+  #     total_fmv_Prior_Year,
+  #     debt_pricing_cash_Prior_Year,
+  #     debt_pricing_pik_Prior_Year,
+  #     debt_pricing_total_coupon_Prior_Year,
+  #     debt_pricing_maturity_Prior_Year,
+  #     equity_pricing_equity_ownership_fd_Prior_Year,
+  #     at_close_senior_debt_Prior_Year,
+  #     at_close_sr_debt_turns_Prior_Year,
+  #     at_close_total_debt_Prior_Year,
+  #     at_close_total_debt_turns_Prior_Year,
+  #     at_close_liquidity_cash_available_liquidity_Prior_Year,
+  #     at_close_fccr_covenants_Prior_Year,
+  #     at_close_enterprise_value_Prior_Year,
+  #     at_close_ev_multiple_Prior_Year,
+  #     at_close_sales_Prior_Year,
+  #     at_close_ebitda_Prior_Year,
+  #     at_close_ebitda_margin_Prior_Year,
+  #     at_close_debt_ev_ratio_Prior_Year,
+  #     current_senior_debt_Prior_Year,
+  #     current_sr_debt_turns_Prior_Year,
+  #     current_total_debt_Prior_Year,
+  #     current_total_debt_turns_Prior_Year,
+  #     current_liquidity_cash_available_liquidity_Prior_Year,
+  #     current_fccr_current_Prior_Year,
+  #     current_enterprise_value_Prior_Year,
+  #     current_ev_multiple_Prior_Year,
+  #     current_sales_Prior_Year,
+  #     current_ebitda_Prior_Year,
+  #     current_ebitda_margin_Prior_Year,
+  #     current_debt_ev_ratio_Prior_Year,
+  #     current_capex_Prior_Year,
+  #     current_ebitda_capex_Prior_Year,
+  #     current_covenants_breach_Prior_Year,
+  #     current_on_interest_Prior_Year,
+  #     debt_coupon_all_in_rate_Prior_Year,
+  #     debt_coupon_everside_exposure_Prior_Year,
+  #     at_close_leverage_everside_exposure_Prior_Year,
+  #     current_leverage_everside_exposure_Prior_Year,
+  #     close_leverage_Prior_Year,
+  #     current_leverage_Prior_Year,
+  #     debt_coupon_cash_rate_Prior_Year,
+  #     debt_coupon_pik_rate_Prior_Year,
+  #     debt_valuation_risk_rating,
+  #     debt_valuation_par_score,
+  #     equity_valuation_risk_rating,
+  #     equity_valuation_par_score,
+  #     debt_ev_risk_rating,
+  #     debt_ev_par_score,
+  #     debt_ev_close_risk_rating,
+  #     debt_ev_close_par_score,
+  #     debt_ev_prior_q_risk_rating,
+  #     debt_ev_prior_q_par_score,
+  #     debt_ev_prior_yr_risk_rating,
+  #     debt_ev_prior_yr_par_score,
+  #     leverage_risk_rating,
+  #     leverage_par_score,
+  #     leverage_close_risk_rating,
+  #     leverage_close_par_score,
+  #     leverage_prior_q_risk_rating,
+  #     leverage_prior_q_par_score,
+  #     leverage_prior_yr_risk_rating,
+  #     leverage_prior_yr_par_score,
+  #     interest_payment_risk_rating,
+  #     interest_payment_par_score,
+  #     upcoming_maturity_risk_rating,
+  #     upcoming_maturity_par_score,
+  #     sales_close_risk_rating,
+  #     sales_close_par_score,
+  #     sales_prior_q_risk_rating,
+  #     sales_prior_q_par_score,
+  #     sales_prior_yr_risk_rating,
+  #     sales_prior_yr_par_score,
+  #     ebitda_close_risk_rating,
+  #     ebitda_close_par_score,
+  #     ebitda_prior_q_risk_rating,
+  #     ebitda_prior_q_par_score,
+  #     ebitda_prior_yr_risk_rating,
+  #     ebitda_prior_yr_par_score,
+  #     ebitda_margin_risk_rating,
+  #     ebitda_margin_par_score,
+  #     ebitda_margin_close_risk_rating,
+  #     ebitda_margin_close_par_score,
+  #     ebitda_margin_prior_q_risk_rating,
+  #     ebitda_margin_prior_q_par_score,
+  #     ebitda_margin_prior_yr_risk_rating,
+  #     ebitda_margin_prior_yr_par_score,
+  #     non_direct_covenant_risk_rating,
+  #     non_direct_covenant_par_score,
+  #     count_of_covenant_tests,
+  #     cov_1_include,
+  #     cov_1_original_covenants,
+  #     cov_1_at_close_value,
+  #     cov_1_test_period,
+  #     cov_1_above_below,
+  #     cov_1_testing_level,
+  #     cov_1_reported_value,
+  #     cov_1_pass_fail,
+  #     cov_1_description,
+  #     cov_2_include,
+  #     cov_2_original_covenants,
+  #     cov_2_at_close_value,
+  #     cov_2_test_period,
+  #     cov_2_above_below,
+  #     cov_2_testing_level,
+  #     cov_2_reported_value,
+  #     cov_2_pass_fail,
+  #     cov_2_description,
+  #     cov_3_include,
+  #     cov_3_original_covenants,
+  #     cov_3_at_close_value,
+  #     cov_3_test_period,
+  #     cov_3_above_below,
+  #     cov_3_testing_level,
+  #     cov_3_reported_value,
+  #     cov_3_pass_fail,
+  #     cov_3_description,
+  #     cov_4_include,
+  #     cov_4_original_covenants,
+  #     cov_4_at_close_value,
+  #     cov_4_test_period,
+  #     cov_4_above_below,
+  #     cov_4_testing_level,
+  #     cov_4_reported_value,
+  #     cov_4_pass_fail,
+  #     cov_4_description,
+  #     cov_5_include,
+  #     cov_5_original_covenants,
+  #     cov_5_at_close_value,
+  #     cov_5_test_period,
+  #     cov_5_above_below,
+  #     cov_5_testing_level,
+  #     cov_5_reported_value,
+  #     cov_5_pass_fail,
+  #     cov_5_description,
+  #     cov_6_include,
+  #     cov_6_original_covenants,
+  #     cov_6_at_close_value,
+  #     cov_6_test_period,
+  #     cov_6_above_below,
+  #     cov_6_testing_level,
+  #     cov_6_reported_value,
+  #     cov_6_pass_fail,
+  #     cov_6_description,
+  #     amendment_date,
+  #     management_team_score,
+  #     recent_amendment_risk_rating,
+  #     recent_amendment_par_score,
+  #     covenant_1_compliance_risk_rating,
+  #     covenant_1_compliance_par_score,
+  #     covenant_2_compliance_risk_rating,
+  #     covenant_2_compliance_par_score,
+  #     covenant_3_compliance_risk_rating,
+  #     covenant_3_compliance_par_score,
+  #     covenant_4_compliance_risk_rating,
+  #     covenant_4_compliance_par_score,
+  #     covenant_5_compliance_risk_rating,
+  #     covenant_5_compliance_par_score,
+  #     covenant_6_compliance_risk_rating,
+  #     covenant_6_compliance_par_score,
+  #     management_team_risk_rating,
+  #     management_team_par_score,
+  #     cov_1_cushion,
+  #     cov_2_cushion,
+  #     cov_3_cushion,
+  #     cov_4_cushion,
+  #     cov_5_cushion,
+  #     cov_6_cushion,
+  #     cov_1_cushion_risk_rating,
+  #     cov_2_cushion_risk_rating,
+  #     cov_3_cushion_risk_rating,
+  #     cov_4_cushion_risk_rating,
+  #     cov_5_cushion_risk_rating,
+  #     cov_6_cushion_risk_rating,
+  #     debt_valuation_score,
+  #     equity_valuation_score,
+  #     total_valuation_metrics_score_value,
+  #     total_valuation_metrics_par_value,
+  #     total_valuation_metrics,
+  #     debt_ev_valuation_score,
+  #     debt_ev_close_valuation_score,
+  #     debt_ev_prior_q_valuation_score,
+  #     debt_ev_prior_yr_valuation_score,
+  #     total_debt_ev_metrics_score_value,
+  #     total_debt_ev_metrics_par_value,
+  #     total_debt_ev_metrics,
+  #     leverage_valuation_score,
+  #     leverage_close_valuation_score,
+  #     leverage_prior_q_valuation_score,
+  #     leverage_prior_yr_valuation_score,
+  #     total_leverage_metrics_score_value,
+  #     total_leverage_metrics_par_value,
+  #     total_leverage_metrics,
+  #     total_capital_structure_metrics_score_value,
+  #     total_capital_structure_metrics_par_value,
+  #     total_capital_structure_metrics,
+  #     covenant_compliance_score,
+  #     non_direct_covenant_valuation_score,
+  #     total_covenant_compliance_valuation_score_value,
+  #     total_covenant_compliance_valuation_par_value,
+  #     total_covenant_compliance_valuation,
+  #     covenant_cushion_score,
+  #     total_covenant_cushion_valuation_score_value,
+  #     total_covenant_cushion_valuation_par_value,
+  #     total_covenant_cushion_valuation,
+  #     interest_payment_valuation_score,
+  #     upcoming_maturity_valuation_score,
+  #     recent_amendment_valuation_score,
+  #     total_covenant_valuation_score_value,
+  #     total_covenant_valuation_par_value,
+  #     total_covenant_valuation,
+  #     sales_close_valuation_score,
+  #     sales_prior_q_valuation_score,
+  #     sales_prior_yr_valuation_score,
+  #     total_sales_valuation_score_value,
+  #     total_sales_valuation_par_score,
+  #     total_sales_valuation,
+  #     ebitda_close_valuation_score,
+  #     ebitda_prior_q_valuation_score,
+  #     ebitda_prior_yr_valuation_score,
+  #     total_ebitda_valuation_score_value,
+  #     total_ebitda_valuation_par_value,
+  #     total_ebitda_valuation,
+  #     ebitda_margin_valuation_score,
+  #     ebitda_margin_close_valuation_score,
+  #     ebitda_margin_prior_q_valuation_score,
+  #     ebitda_margin_prior_yr_valuation_score,
+  #     total_ebitda_margin_valuation_score_value,
+  #     total_ebitda_margin_valuation_par_value,
+  #     total_ebitda_margin_valuation,
+  #     total_financial_valuation_score_value,
+  #     total_financial_valuation_par_value,
+  #     total_financial_valuation,
+  #     total_management_team_score_value,
+  #     total_management_team_par_value,
+  #     total_management_team_value,
+  #     total_qualitative_metrics,
+  #     total_score_value,
+  #     total_par_value,
+  #     total_score
+  #   )
+  
+  write.csv(full_risk_ratings_for_export, paste0("~/R Output/Risk Rating Output/full_risk_ratings_dataset_",current_as_of_date,".csv"), row.names = FALSE)
+
+  print("Below is a breakdown of WA risk score of industry and vertical weighted by FMV:")
+  
+  full_risk_ratings %>% 
+    group_by(
+      industry, 
+      investment_vertical
+    ) %>% 
+    summarize(
+      wa_risk_score = weighted.mean(total_score, total_fmv, na.rm = TRUE),
+      count = n()
+    ) %>%
+    arrange(desc(wa_risk_score)) %>% 
+    print()
+  
+  print("Below is a breakdown of WA risk score of geography and vertical weighted by FMV:")
+  
+  full_risk_ratings %>% 
+    group_by(
+      geography,
+      investment_vertical
+    ) %>% 
+    summarize(
+      wa_risk_score = weighted.mean(total_score, total_fmv, na.rm = TRUE),
+      count = n()
+    ) %>%
+    arrange(desc(wa_risk_score)) %>% 
+    print()
+  
+}
