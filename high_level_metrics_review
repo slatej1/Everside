@@ -1,0 +1,139 @@
+# library the packages from the IRR_Data_Tab_Creation.R script function first
+
+Everside_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Everside Dataset") %>% 
+  clean_names() %>% 
+  mutate(
+    as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+    date_of_investment = case_when(
+      str_length(date_of_investment) == 5 ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30"),
+      date_of_investment == "9/31/2022" ~ as.Date("2022-09-31", format = "%Y/%m/%d"),
+      TRUE ~ NA
+    ),
+    invested_debt = as.numeric(invested_debt),
+    invested_equity = as.numeric(invested_equity),
+    debt_realized_value = as.numeric(debt_realized_value),
+    equity_realized_value = as.numeric(equity_realized_value),
+    everside_percent_exposure = as.numeric(everside_percent_exposure),
+    debt_gaap_cost = as.numeric(debt_gaap_cost),
+    equity_fmv = as.numeric(equity_fmv),
+    debt_pricing_cash = as.numeric(debt_pricing_cash),
+    debt_pricing_pik = as.numeric(debt_pricing_pik),
+    debt_pricing_total_coupon = as.numeric(debt_pricing_total_coupon),
+    debt_pricing_maturity = case_when(
+      str_length(debt_pricing_maturity) == 5 ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+      TRUE ~ NA
+    ),
+    equity_pricing_equity_ownership_fd = as.numeric(equity_pricing_equity_ownership_fd),
+    at_close_senior_debt = as.numeric(at_close_senior_debt),
+    at_close_sr_debt_turns = as.numeric(at_close_sr_debt_turns),
+    at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+    at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+    current_senior_debt = as.numeric(current_senior_debt),
+    current_total_debt = as.numeric(current_total_debt),
+    current_liquidity_cash_available_liquidity = as.numeric(current_liquidity_cash_available_liquidity),
+    current_fccr_current = as.numeric(current_fccr_current),
+    current_enterprise_value = as.numeric(current_enterprise_value),
+    current_sales = as.numeric(current_sales),
+    current_ebitda = as.numeric(current_ebitda),
+    current_capex = as.numeric(current_capex),
+    current_ebitda_capex = as.numeric(current_ebitda_capex),
+    exit_date = case_when(
+      str_length(exit_date) == 5 ~ as.Date(as.numeric(exit_date), origin = "1899-12-30"),
+      TRUE ~ NA
+    ),
+    gross_irr = as.numeric(gross_irr),
+    net_irr = as.numeric(net_irr),
+    debt_coupon_all_in_rate = as.numeric(debt_coupon_all_in_rate),
+    debt_coupon_everside_exposure = as.numeric(debt_coupon_everside_exposure)
+  ) %>% 
+  collect() %>% 
+  data.table()
+
+IRR_Dataset <- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "IRR Dataset") %>% 
+  clean_names() %>% 
+  mutate(
+    as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+    deployment_total = as.numeric(deployment_total),
+    debt_gross_moic = as.numeric(debt_gross_moic),
+    debt_net_moic = as.numeric(debt_net_moic),
+    debt_gross_irr = as.numeric(debt_gross_irr),
+    debt_net_irr = as.numeric(debt_net_irr),
+    equity_gross_moic = as.numeric(equity_gross_moic),
+    equity_net_moic = as.numeric(equity_net_moic),
+    equity_gross_irr = as.numeric(equity_gross_irr),
+    equity_net_irr = as.numeric(equity_net_irr),
+    gross_moic = as.numeric(gross_moic),
+    net_moic = as.numeric(net_moic),
+    gross_irr = as.numeric(gross_irr),
+    net_irr = as.numeric(net_irr),
+  )
+
+fund_level_metrics_dataset <- Everside_Dataset %>% 
+  filter(as_of_date == max(Everside_Dataset$as_of_date)) %>%
+  group_by(fund) %>%
+  summarize(
+    leverage = weighted.mean(current_leverage, current_leverage_everside_exposure, na.rm = TRUE),
+    coupon = weighted.mean(debt_coupon_all_in_rate, debt_coupon_everside_exposure, na.rm = TRUE),
+    total_exposure = sum(everside_exposure, na.rm = TRUE),
+    total_debt_exposure = sum(everside_exposure_debt),
+    total_equity_exposure = sum(everside_exposure_equity),
+    active_company_count = n()
+    ) %>%
+  mutate(
+    debt_percentage = total_debt_exposure / total_exposure,
+    equity_percentage = total_equity_exposure / total_exposure
+)
+
+IRR_fund_level_data <- IRR_Dataset %>% 
+  filter(as_of_date == max(IRR_Dataset$as_of_date)) %>% 
+  group_by(fund) %>% 
+  summarize(
+    total_commitments = sum(commitment_total, na.rm = TRUE),
+    total_invested = sum(invested_total, na.rm = TRUE),
+    total_realized = sum(realized_value_total, na.rm = TRUE),
+    total_unrealized = sum(unrealized_value_total, na.rm = TRUE),
+    investment_count = n()
+  )
+
+fund_level_metrics <- merge(
+  fund_level_metrics_dataset,
+  IRR_fund_level_data,
+  by = "fund",
+  all = TRUE
+)
+
+grouped_metrics_everside_dataset <- Everside_Dataset %>% 
+  group_by(
+    fund, 
+    investment_vertical, 
+    table,
+    as_of_date
+  ) %>% 
+  summarize(
+    leverage = weighted.mean(current_leverage, current_leverage_everside_exposure, na.rm = TRUE),
+    coupon = weighted.mean(debt_coupon_all_in_rate, debt_coupon_everside_exposure, na.rm = TRUE)
+  ) %>% 
+  arrange(fund, investment_vertical)
+
+full_grouped_metrics <- merge(
+  grouped_metrics_everside_dataset,
+  IRR_Dataset,
+  by = c("fund", "investment_vertical", "table", "as_of_date"),
+  all = TRUE
+) %>% 
+  filter(
+    as_of_date == "2025-03-31",
+    investment_vertical != "Directd"
+  ) %>% 
+  select(
+    fund,
+    investment_vertical,
+    table,
+    as_of_date,
+    leverage,
+    coupon,
+    invested_total,
+    commitment_total
+  )
+
+View(full_grouped_metrics)
