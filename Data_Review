@@ -1,0 +1,1065 @@
+# install.packages("dplyr")
+# install.packages("openxlsx")
+# install.packages("janitor")
+# install.packages("data.table")
+# install.packages("stats")
+# install.packages("stringr")
+# install.packages("readxl")
+# install.packages("ggplot2")
+# install.packages("jrvFinance")
+library(dplyr)
+library(tibble)
+library(openxlsx)
+library(janitor)
+library(data.table)
+library(stats)
+library(jrvFinance)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(purrr)
+library(data.table)
+library(tidyr)
+library(stringr)
+options(scipen = 999)
+
+# as_of_date <- as.Date("2024-06-30")
+# 
+# prev_as_of_date <- rollback(rollback(rollback(as_of_date)))
+# 
+# fund <- "Fund II"
+# 
+# investment_vertical <- "Primary"
+# 
+# table <- "Boathouse_III"
+
+ingest_data <- function(quarterly_template = "Boathouse III - Everside Quarterly Report Template (2Q24)", sheet_name = quarterly_template_Sheet) {
+
+    Everside_Dataset <<- openxlsx::read.xlsx(xlsxFile = "~/R Data/Everside Dataset.xlsx", sheet = "Everside Dataset") %>% 
+      clean_names() %>% 
+      mutate(
+        as_of_date = as.Date(as_of_date, origin = "1899-12-30"),
+        date_of_investment = case_when(
+          str_length(date_of_investment) == 5 ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30"),
+          date_of_investment == "9/31/2022" ~ as.Date("2022-09-31", format = "%Y/%m/%d"),
+          TRUE ~ NA
+        ),
+        invested_debt = as.numeric(invested_debt),
+        invested_equity = as.numeric(invested_equity),
+        debt_realized_value = as.numeric(debt_realized_value),
+        equity_realized_value = as.numeric(equity_realized_value),
+        everside_percent_exposure = as.numeric(everside_percent_exposure),
+        debt_gaap_cost = as.numeric(debt_gaap_cost),
+        equity_fmv = as.numeric(equity_fmv),
+        debt_pricing_cash = as.numeric(debt_pricing_cash),
+        debt_pricing_pik = as.numeric(debt_pricing_pik),
+        debt_pricing_total_coupon = as.numeric(debt_pricing_total_coupon),
+        debt_pricing_maturity = case_when(
+          str_length(debt_pricing_maturity) == 5 ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+          TRUE ~ NA
+        ),
+        equity_pricing_equity_ownership_fd = as.numeric(equity_pricing_equity_ownership_fd),
+        at_close_senior_debt = as.numeric(at_close_senior_debt),
+        at_close_sr_debt_turns = as.numeric(at_close_sr_debt_turns),
+        at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+        at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+        current_senior_debt = as.numeric(current_senior_debt),
+        current_total_debt = as.numeric(current_total_debt),
+        current_liquidity_cash_available_liquidity = as.numeric(current_liquidity_cash_available_liquidity),
+        current_fccr_current = as.numeric(current_fccr_current),
+        current_enterprise_value = as.numeric(current_enterprise_value),
+        current_sales = as.numeric(current_sales),
+        current_ebitda = as.numeric(current_ebitda),
+        current_capex = as.numeric(current_capex),
+        current_ebitda_capex = as.numeric(current_ebitda_capex),
+        exit_date = case_when(
+          str_length(exit_date) == 5 ~ as.Date(as.numeric(exit_date), origin = "1899-12-30"),
+          TRUE ~ NA
+        ),
+        gross_irr = as.numeric(gross_irr),
+        net_irr = as.numeric(net_irr),
+        debt_coupon_all_in_rate = as.numeric(debt_coupon_all_in_rate),
+        debt_coupon_everside_exposure = as.numeric(debt_coupon_everside_exposure)
+      ) %>% 
+      collect() %>% 
+      data.table()
+    
+    tryCatch({
+      quarterly_file <<- openxlsx::read.xlsx(xlsxFile = path.expand(paste0("~/R Data/Quarterly Templates/",quarterly_template,".xlsx")), sheet = sheet_name, startRow = 3) %>%
+        clean_names() %>% 
+        mutate(
+          date_of_investment = case_when(
+            is.numeric(date_of_investment) ~ as.Date(date_of_investment, origin = "1899-12-30"), 
+            TRUE ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30")
+          ),
+          invested_dollars_debt_cost = as.numeric(invested_dollars_debt_cost),
+          invested_dollars_equity_realized_value = as.numeric(invested_dollars_equity_realized_value),
+          debt_pricing_cash = as.numeric(debt_pricing_cash),
+          debt_pricing_pik = as.numeric(debt_pricing_pik),
+          debt_pricing_total_coupon = as.numeric(debt_pricing_total_coupon),
+          debt_pricing_maturity = case_when(
+            invested_dollars_debt_cost == 0 ~ NA,
+            debt_pricing_maturity %in% c("N/A", "NA", "") ~ NA,
+            is.na(debt_pricing_maturity) ~ NA,
+            is.numeric(debt_pricing_maturity) ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+            TRUE ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30")
+          ),
+          at_close_sr_debt_turns = as.numeric(at_close_sr_debt_turns),
+          at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+          at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+          at_close_ebitda = as.numeric(at_close_ebitda),
+          at_close_ebitda_capex = at_close_column3,
+          current_senior_debt = as.numeric(current_senior_debt),
+          current_total_debt = as.numeric(current_total_debt),
+          current_enterprise_value = as.numeric(current_enterprise_value),
+          current_sales = as.numeric(current_sales),
+          current_ebitda = as.numeric(current_ebitda),
+          current_capex = as.numeric(current_capex)
+        ) %>% 
+        mutate(
+          at_close_senior_debt_turns = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_senior_debt / at_close_ebitda
+          ),
+          at_close_total_debt_turns = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_total_debt / at_close_ebitda
+          ),
+          at_close_ev_multiple = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_enterprise_value / at_close_ebitda
+          ),
+          current_senior_debt_turns = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_senior_debt / current_ebitda
+          ),
+          current_total_debt_turns = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_total_debt / current_ebitda
+          ),
+          current_ev_multiple = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_enterprise_value / current_ebitda
+          ),
+          current_ebitda_capex = case_when(
+            current_capex >= 0 ~ current_ebitda - current_capex,
+            current_capex < 0 ~ current_ebitda + current_capex,
+            TRUE ~ current_ebitda
+          )
+        ) %>% 
+        collect() %>% 
+        data.table()
+    }, 
+    error = function(e) {
+      quarterly_file <<- openxlsx::read.xlsx(xlsxFile = path.expand(paste0("~/R Data/Quarterly Templates/",quarterly_template,".xlsx")), sheet = sheet_name, startRow = 3) %>%
+        clean_names() %>% 
+        mutate(
+          date_of_investment = case_when(
+            is.numeric(date_of_investment) ~ as.Date(date_of_investment, origin = "1899-12-30"), 
+            TRUE ~ as.Date(as.numeric(date_of_investment), origin = "1899-12-30")
+          ),
+          invested_dollars_debt_cost = as.numeric(invested_dollars_debt_cost),
+          invested_dollars_equity_realized_value = as.numeric(invested_dollars_equity_realized_value),
+          debt_pricing_cash = as.numeric(debt_pricing_cash),
+          debt_pricing_pik = as.numeric(debt_pricing_pik),
+          debt_pricing_total_coupon = as.numeric(debt_pricing_total_coupon),
+          debt_pricing_maturity = case_when(
+            invested_dollars_debt_cost == 0 ~ NA,
+            debt_pricing_maturity %in% c("N/A", "NA", "") ~ NA,
+            is.na(debt_pricing_maturity) ~ NA,
+            is.numeric(debt_pricing_maturity) ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30"),
+            TRUE ~ as.Date(as.numeric(debt_pricing_maturity), origin = "1899-12-30")
+          ),
+          at_close_sr_debt_turns = as.numeric(at_close_sr_debt_turns),
+          at_close_fccr_covenants = as.numeric(at_close_fccr_covenants),
+          at_close_enterprise_value = as.numeric(at_close_enterprise_value),
+          at_close_ebitda = as.numeric(at_close_ebitda),
+          current_senior_debt = as.numeric(current_senior_debt),
+          current_total_debt = as.numeric(current_total_debt),
+          current_enterprise_value = as.numeric(current_enterprise_value),
+          current_sales = as.numeric(current_sales),
+          current_ebitda = as.numeric(current_ebitda),
+          current_capex = as.numeric(current_capex)
+        ) %>% 
+        mutate(
+          at_close_senior_debt_turns = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_senior_debt / at_close_ebitda
+          ),
+          at_close_total_debt_turns = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_total_debt / at_close_ebitda
+          ),
+          at_close_ev_multiple = case_when(
+            at_close_ebitda <= 0 ~ NA,
+            TRUE ~ at_close_enterprise_value / at_close_ebitda
+          ),
+          current_senior_debt_turns = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_senior_debt / current_ebitda
+          ),
+          current_total_debt_turns = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_total_debt / current_ebitda
+          ),
+          current_ev_multiple = case_when(
+            current_ebitda <= 0 ~ NA,
+            TRUE ~ current_enterprise_value / current_ebitda
+          ),
+          current_ebitda_capex = case_when(
+            current_capex >= 0 ~ current_ebitda - current_capex,
+            current_capex < 0 ~ current_ebitda + current_capex,
+            TRUE ~ current_ebitda
+          )
+        ) %>% 
+        collect() %>% 
+        data.table()
+    }
+    )
+    
+    
+
+}
+
+data_cleanse <- function(quarterly_file, table_name, as_of_date_input, update_denom_mill_flag = FALSE) {
+  
+  if(update_denom_mill_flag == TRUE) {
+
+      cleansed_quarterly_file <- quarterly_file %>% 
+        mutate(
+          invested_dollars_debt_cost = ifelse(invested_dollars_debt_cost/1000000 < 1, invested_dollars_debt_cost * 1000, invested_dollars_debt_cost),
+          invested_dollars_debt_realized_value = ifelse(invested_dollars_debt_realized_value/1000000 < 1, invested_dollars_debt_realized_value * 1000, invested_dollars_debt_realized_value),
+          invested_dollars_debt_fmv = ifelse(invested_dollars_debt_fmv/1000000 < 1, invested_dollars_debt_fmv * 1000, invested_dollars_debt_fmv),
+          invested_dollars_equity_cost = ifelse(invested_dollars_equity_cost/1000000 < 1, invested_dollars_equity_cost * 1000, invested_dollars_equity_cost),
+          invested_dollars_equity_realized_value = ifelse(invested_dollars_equity_realized_value/1000000 < 1, invested_dollars_equity_realized_value * 1000, invested_dollars_equity_realized_value),
+          invested_dollars_equity_fmv = ifelse(invested_dollars_equity_fmv/1000000 < 1, invested_dollars_equity_fmv * 1000, invested_dollars_equity_fmv),
+          at_close_senior_debt = ifelse(at_close_senior_debt/1000000 < 1, at_close_senior_debt * 1000, at_close_senior_debt),
+          at_close_total_debt = ifelse(at_close_total_debt/1000000 < 1, at_close_total_debt * 1000, at_close_total_debt),
+          at_close_liquidity_cash_available_liquidity = ifelse(at_close_liquidity_cash_available_liquidity/1000000 < 1, at_close_liquidity_cash_available_liquidity * 1000, at_close_liquidity_cash_available_liquidity),
+          at_close_enterprise_value = ifelse(at_close_enterprise_value/1000000 < 1, at_close_enterprise_value * 1000, at_close_enterprise_value),
+          at_close_sales = ifelse(at_close_sales/1000000 < 1, at_close_sales * 1000, at_close_sales),
+          at_close_ebitda = ifelse(at_close_ebitda/1000000 < 1, at_close_ebitda * 1000, at_close_ebitda),
+          at_close_capex = ifelse(at_close_capex/1000000 < 1, at_close_capex * 1000, at_close_capex),
+          at_close_ebitda_capex = ifelse(at_close_ebitda_capex/1000000 < 1, at_close_ebitda_capex * 1000, at_close_ebitda_capex),
+          current_senior_debt = ifelse(current_senior_debt/1000000 < 1, current_senior_debt * 1000, current_senior_debt),
+          current_total_debt = ifelse(current_total_debt/1000000 < 1, current_total_debt * 1000, current_total_debt),
+          current_liquidity_cash_available_liquidity = ifelse(current_liquidity_cash_available_liquidity/1000000 < 1, current_liquidity_cash_available_liquidity * 1000, current_liquidity_cash_available_liquidity),
+          current_enterprise_value = ifelse(current_enterprise_value/1000000 < 1, current_enterprise_value * 1000, current_enterprise_value),
+          current_sales = ifelse(current_sales/1000000 < 1, current_sales * 1000, current_sales),
+          current_ebitda = ifelse(current_ebitda/1000000 < 1, current_ebitda * 1000, current_ebitda),
+          current_capex = ifelse(current_capex/1000000 < 1, current_capex * 1000, current_capex),
+          current_ebitda_capex = ifelse(current_ebitda_capex/1000000 < 1, current_ebitda_capex * 1000, current_ebitda_capex)
+        )
+    
+  } else {
+    
+    cleansed_quarterly_file <- quarterly_file 
+    
+  }
+  
+  quarterly_data_esg_metrics_updated <- cleansed_quarterly_file %>% 
+    mutate(
+      status_compliance_of_credit_covenants_breach = case_when(
+        status_compliance_of_credit_covenants_breach %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        status_compliance_of_credit_covenants_breach %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      status_compliance_of_credit_current_on_interest = case_when(
+        status_compliance_of_credit_current_on_interest %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        status_compliance_of_credit_current_on_interest %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      net_income_2m = case_when(
+        net_income_2m < 2000000 ~ TRUE,
+        net_income_2m %in% c("Y", "Y ", "Yes", "Yes ", "Smaller enterprise", "Net Income: <$2M", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        net_income_2m %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      tangible_net_worth_6m = case_when(
+        tangible_net_worth_6m < 6000000 ~ TRUE,
+        tangible_net_worth_6m %in% c("Y", "Y ", "Yes", "Yes ", "Tangible Net Worth: <$6M", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        tangible_net_worth_6m %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      green_healthcare_education_job_training_etc_y_n = case_when(
+        green_healthcare_education_job_training_etc_y_n %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true", "Y - Healthcare related", "Y - Healthcare end-market related", "Healthcare") ~ TRUE,
+        green_healthcare_education_job_training_etc_y_n %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      low_mod_income = case_when(
+        low_mod_income %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true", "Moderate", "Middle", "Low", "Y (Low)", "Y (Moderate)") ~ TRUE,
+        low_mod_income %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false", "Upper") ~ FALSE,
+        TRUE ~ NA
+      ),
+      hub_zone = case_when(
+        hub_zone %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true", "2", "1", "8", "5", "6") ~ TRUE,
+        hub_zone %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      opportunity_zone = case_when(
+        opportunity_zone %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        opportunity_zone %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      
+      rural = case_when(
+        rural %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        rural %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      minority_owned = case_when(
+        as.numeric(minority_owned) > 0 ~ TRUE,
+        str_sub(minority_owned, str_length(minority_owned) - 5, str_length(minority_owned)) == "Owned" ~ TRUE,
+        minority_owned %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        minority_owned %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      woman_owned = case_when(
+        as.numeric(woman_owned) > 0 ~ TRUE,
+        woman_owned %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        woman_owned %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      veteran_owned = case_when(
+        as.numeric(veteran_owned) > 0 ~ TRUE,
+        veteran_owned %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        veteran_owned %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      woman_management = case_when(
+        str_sub(woman_management, 1, 1) == "Y" ~ TRUE,
+        woman_management %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        woman_management %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      minority_management = case_when(
+        substr(minority_management, 1, 1) == "Y" ~ TRUE,
+        minority_management %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        minority_management %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      veteran_management = case_when(
+        substr(veteran_management, 1, 1) == "Y" ~ TRUE,
+        veteran_management %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        veteran_management %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        TRUE ~ NA
+      ),
+      family_owned = case_when(
+        family_owned %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true") ~ TRUE,
+        family_owned %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false") ~ FALSE,
+        str_length(family_owned) > 8 ~ TRUE,
+        TRUE ~ NA
+      ),
+      non_committed_fund_sponsor = case_when(
+        non_committed_fund_sponsor %in% c("Y", "Y ", "Yes", "Yes ", TRUE, "TRUE", "T", "True", "true", "Sponsored", "sponsored") ~ TRUE,
+        non_committed_fund_sponsor %in% c("N", "N ", "No", "No ", FALSE, "FALSE", "F", "False", "false", "Unsponsored", "unsponsored") ~ FALSE,
+        str_length(non_committed_fund_sponsor) > 8 ~ TRUE,
+        TRUE ~ NA
+      )
+    )
+  
+  openxlsx::write.xlsx(quarterly_data_esg_metrics_updated, path.expand(paste0("~/R Output/",table_name, "-", as_of_date_input, "_updated_template.xlsx")), overwrite = TRUE)
+
+  return(quarterly_data_esg_metrics_updated)
+  
+}
+
+create_comparison_data <- function(quarterly_data_esg_metrics_updated, kfund = fund, kinvestment_vertical = investment_vertical, ktable = table, kas_of_date = as_of_date){
+  
+  quarterly_dataset_for_comparison <- quarterly_data_esg_metrics_updated %>% 
+    transmute(
+      fund = kfund,
+      investment_vertical = kinvestment_vertical,
+      table = ktable,
+      as_of_date = kas_of_date,
+      company_name,
+      date_of_investment,
+      industry,
+      geography,
+      use_of_proceeds,
+      sponsor_name,
+      sponsor_type,
+      name_of_senior_lender,
+      type_of_debt_security,
+      type_of_equity_security,
+      invested_debt = invested_dollars_debt_cost,
+      debt_realized_value = invested_dollars_debt_realized_value,
+      debt_fmv = invested_dollars_debt_fmv,
+      invested_equity = invested_dollars_equity_cost,
+      equity_realized_value = invested_dollars_equity_realized_value,
+      equity_fmv = invested_dollars_equity_fmv,
+      debt_pricing_cash,
+      debt_pricing_pik,
+      debt_pricing_total_coupon,
+      debt_pricing_maturity,
+      equity_pricing_cash,
+      equity_pricing_pik,
+      equity_pricing_equity_ownership_fd,
+      at_close_senior_debt,
+      at_close_sr_debt_turns,
+      at_close_total_debt,
+      at_close_total_debt_turns,
+      at_close_liquidity_cash_available_liquidity,
+      at_close_fccr_covenants,
+      at_close_enterprise_value,
+      at_close_ev_multiple,
+      at_close_sales,
+      at_close_ebitda,
+      at_close_capex,
+      at_close_ebitda_capex,
+      current_senior_debt,
+      current_sr_debt_turns,
+      current_total_debt,
+      current_total_debt_turns,
+      current_liquidity_cash_available_liquidity,
+      current_fccr_current,
+      current_enterprise_value,
+      current_ev_multiple,
+      current_sales,
+      current_ebitda,
+      current_capex,
+      current_ebitda_capex,
+      gross_profit_ttm,
+      interest_charges_ttm,
+      net_income_ttm,
+      cashflow_from_ops_ttm,
+      cash_balance_ttm,
+      current_assets_ttm,
+      fixed_assets_ttm,
+      total_assets_ttm,
+      current_liabilities_ttm,
+      total_liabilities_ttm,
+      eo_y_equity_value_market,
+      federal_taxes_paid,
+      state_taxes_paid,
+      current_status = status_compliance_of_credit_current_status,
+      current_type_of_debt = status_compliance_of_credit_type_of_debt,
+      current_covenants_breach = status_compliance_of_credit_covenants_breach,
+      current_on_interest = status_compliance_of_credit_current_on_interest,
+      status_compliance_of_credit_date_interest_off,
+      status_compliance_of_credit_days_w_o_interest,
+      net_income_2m,
+      tangible_net_worth_6m,
+      employees_at_close,
+      employees_at_recent_fte,
+      green_healthcare_education_job_training_etc_y_n,
+      company_address,
+      low_mod_income,
+      hub_zone,
+      opportunity_zone,
+      rural,
+      minority_owned,
+      minority_owned_percent,
+      woman_owned,
+      woman_owned_percent,
+      veteran_owned,
+      veterans_owned_percent,
+      woman_management,
+      minority_management,
+      veteran_management,
+      family_owned,
+      non_committed_fund_sponsor,
+      short_one_sentence_description_of_impact_related_comment,
+      exit_date,
+      exit_multiple,
+      exit_leverage,
+      exit_returns_net_irr,
+      exit_returns_net_moic,
+      exit_scale,
+      exit_type,
+      exit_buyer
+    )
+  
+  return(quarterly_dataset_for_comparison)
+  
+}
+
+compare_data <- function(quarterly_data_for_comp, Everside_Dataset = Everside_Dataset, kfund, kinvestment_vertical, ktable, kas_of_date, kprev_as_of_date) {
+  notes <- createWorkbook()
+  addWorksheet(notes, paste0(substr(kfund, 1, 8)," - ",ktable))
+  
+  existing_data_last_period <- Everside_Dataset %>% 
+    filter(
+      fund == kfund,
+      investment_vertical == kinvestment_vertical,
+      table == ktable,
+      as_of_date == kprev_as_of_date
+    )
+  
+  comp_data <<- merge(
+    quarterly_data_for_comp,
+    existing_data_last_period,
+    by = c("fund", "investment_vertical", "table", "company_name"),
+    all = TRUE,
+    suffixes = c("_current_quarter", "_previous_quarter")
+  )
+  
+  industry_provided_incorrectly <- comp_data %>% 
+    filter(
+      !industry_current_quarter %in% c("Business Services", "Consumer", "Healthcare", "Technology", "Industrials", "Materials")
+    ) %>% 
+    select(
+      company_name,
+      industry_current_quarter,
+      industry_previous_quarter
+    )
+  
+  if (nrow(industry_provided_incorrectly) > 0) {
+    
+    print(paste0("There are ", nrow(industry_provided_incorrectly), " companies with non-acceptable industries, please validate!"))
+    print(industry_provided_incorrectly)
+    
+  } else {
+    
+    print("There are NO issues due to Industry!")
+    
+  }
+  
+  geography_provided_incorrectly <- comp_data %>% 
+    filter(
+      !geography_current_quarter %in% c("Midwest", "Northeast", "Southeast", "Southwest", "West")
+    ) %>% 
+    select(
+      company_name,
+      geography_current_quarter,
+      geography_previous_quarter
+    )
+  
+  if (nrow(geography_provided_incorrectly) > 0) {
+    
+    print(paste0("There are ", nrow(geography_provided_incorrectly), " companies with non-acceptable geography values, please validate!"))
+    print(geography_provided_incorrectly)
+    
+  } else {
+    
+    print("There are NO issues due to Geography!")
+    
+  }
+  
+  realized_debt_decrease <- comp_data %>% 
+    filter(debt_realized_value_current_quarter < debt_realized_value_previous_quarter) %>% 
+    transmute(
+      company_name,
+      debt_realized_value_current_quarter,
+      debt_realized_value_previous_quarter,
+      diff = debt_realized_value_current_quarter - debt_realized_value_previous_quarter
+    )
+  
+  if (nrow(realized_debt_decrease) > 0) {
+    
+    print(paste0("There are ", nrow(realized_debt_decrease), " companies with a decrease to realized debt, please validate!"))
+    print(realized_debt_decrease)
+    
+  } else {
+    
+    print("There are NO issues due to realized debt decreasing!")
+    
+  }
+  
+  realized_equity_decrease <- comp_data %>% 
+    filter(equity_realized_value_current_quarter < equity_realized_value_previous_quarter) %>% 
+    transmute(
+      company_name,
+      equity_realized_value_current_quarter,
+      equity_realized_value_previous_quarter,
+      diff = equity_realized_value_current_quarter - equity_realized_value_previous_quarter
+    )
+  
+  if (nrow(realized_equity_decrease) > 0) {
+    
+    print(paste0("There are ", nrow(realized_equity_decrease), " companies with a decrease to realized equity, please validate!"))
+    print(realized_equity_decrease)
+    
+  } else {
+    
+    print("There are NO issues due to realized equity decreasing!")
+    
+  }
+  
+  maturity_date_problems <- comp_data %>% 
+    filter(debt_pricing_maturity_current_quarter != debt_pricing_maturity_previous_quarter) %>% 
+    transmute(
+      company_name,
+      debt_pricing_maturity_current_quarter,
+      debt_pricing_maturity_previous_quarter,
+      days_changed = time_length(debt_pricing_maturity_current_quarter - debt_pricing_maturity_previous_quarter, "days")
+    ) %>% 
+    arrange(days_changed)
+  
+  if (nrow(maturity_date_problems) > 0) {
+    
+    print(paste0("There are ", nrow(maturity_date_problems), " companies with new maturity dates, please validate!"))
+    print(maturity_date_problems)
+    
+  } else {
+    
+    print("There are NO changes to Maturity Dates!")
+    
+  }
+  
+  debt_type_missing <- comp_data %>% 
+    filter(invested_debt_current_quarter > 0,
+           is.na(type_of_debt_security_current_quarter) | type_of_debt_security_current_quarter == "<N/A>" | type_of_debt_security_current_quarter == "NA" | type_of_debt_security_current_quarter == "N/A" | type_of_debt_security_current_quarter == "") %>% 
+    select(
+      company_name,
+      type_of_debt_security_current_quarter,
+      invested_debt_current_quarter
+    )
+    
+  if (nrow(debt_type_missing) > 0) {
+    
+    print(paste0("There are ", nrow(debt_type_missing), " companies with invested debt, but no debt type provided, please reach out to the SBIC!"))
+    print(debt_type_missing)
+    
+  } else {
+    
+    print("There are NO debt investments missing debt type!")
+    
+  }
+  
+  equity_type_missing <- comp_data %>% 
+    filter(invested_equity_current_quarter > 0,
+           is.na(type_of_equity_security_current_quarter) | type_of_equity_security_current_quarter == "<N/A>" | type_of_equity_security_current_quarter == "NA" | type_of_equity_security_current_quarter == "N/A" | type_of_equity_security_current_quarter == "") %>% 
+    select(
+      company_name,
+      type_of_equity_security_current_quarter,
+      invested_equity_current_quarter
+    )
+  
+  if (nrow(equity_type_missing) > 0) {
+    
+    print(paste0("There are ", nrow(equity_type_missing), " companies with invested equity, but no equity type provided, please reach out to the SBIC!"))
+    print(equity_type_missing)
+    
+  } else {
+    
+    print("There are NO equity investments missing equity type!")
+    
+  }
+  
+  current_total_coupon_significant_change <- comp_data %>% 
+    mutate(
+      total_coupon_diff = debt_pricing_total_coupon_current_quarter - debt_pricing_total_coupon_previous_quarter,
+      total_coupon_diff_perc = (debt_pricing_total_coupon_current_quarter - debt_pricing_total_coupon_previous_quarter)/debt_pricing_total_coupon_current_quarter
+    ) %>% 
+    filter(total_coupon_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      debt_pricing_total_coupon_current_quarter,
+      debt_pricing_total_coupon_previous_quarter,
+      total_coupon_diff,
+      total_coupon_diff_perc
+    )
+  
+  if (nrow(current_total_coupon_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_total_coupon_significant_change), " companies with significant increases to debt pricing total coupon, please validate!"))
+    print(current_total_coupon_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant increases to debt pricing total coupon!")
+    
+  }
+  
+  current_total_debt_significant_change <- comp_data %>% 
+    mutate(
+      total_debt_diff = current_total_debt_current_quarter - current_total_debt_previous_quarter,
+      total_debt_diff_perc = (current_total_debt_current_quarter - current_total_debt_previous_quarter)/current_total_debt_current_quarter
+    ) %>% 
+    filter(total_debt_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      current_total_debt_current_quarter,
+      current_total_debt_previous_quarter,
+      total_debt_diff,
+      total_debt_diff_perc
+    )
+  
+  if (nrow(current_total_debt_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_total_debt_significant_change), " companies with significant increases to total debt, please validate!"))
+    print(current_total_debt_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant increases to total debt!")
+    
+  }
+  
+  current_senior_debt_significant_change <- comp_data %>% 
+    mutate(
+      senior_debt_diff = current_senior_debt_current_quarter - current_senior_debt_previous_quarter,
+      senior_debt_diff_perc = (current_senior_debt_current_quarter - current_senior_debt_previous_quarter)/current_senior_debt_current_quarter
+    ) %>% 
+    filter(senior_debt_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      current_senior_debt_current_quarter,
+      current_senior_debt_previous_quarter,
+      senior_debt_diff,
+      senior_debt_diff_perc
+    )
+  
+  if (nrow(current_senior_debt_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_senior_debt_significant_change), " companies with significant increases to senior debt, please validate!"))
+    print(current_senior_debt_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant increases to senior debt!")
+    
+  }
+  
+  current_enterprise_value_significant_change <- comp_data %>% 
+    mutate(
+      enterprise_value_diff = current_enterprise_value_previous_quarter - current_enterprise_value_current_quarter,
+      enterprise_value_diff_perc = (current_enterprise_value_previous_quarter - current_enterprise_value_current_quarter)/current_enterprise_value_previous_quarter
+    ) %>% 
+    filter(enterprise_value_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      current_enterprise_value_current_quarter,
+      current_enterprise_value_previous_quarter,
+      enterprise_value_diff,
+      enterprise_value_diff_perc
+    )
+  
+  if (nrow(current_enterprise_value_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_enterprise_value_significant_change), " companies with significant decreases to Enterprise Value, please validate!"))
+    print(current_enterprise_value_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant decreases to Enterprise Value!")
+    
+  }
+  
+  current_ebitda_significant_change <- comp_data %>% 
+    mutate(
+      ebitda_diff = case_when(
+        current_ebitda_previous_quarter < 0 ~ current_ebitda_previous_quarter + current_ebitda_current_quarter,
+        TRUE ~ current_ebitda_previous_quarter - current_ebitda_current_quarter
+      ),
+      ebitda_diff_perc = case_when(
+        current_ebitda_current_quarter > current_ebitda_previous_quarter ~ 0,
+        current_ebitda_previous_quarter < 0 ~ (current_ebitda_previous_quarter + current_ebitda_current_quarter)/current_ebitda_previous_quarter,
+        TRUE ~ (current_ebitda_previous_quarter - current_ebitda_current_quarter)/current_ebitda_previous_quarter
+      ) 
+    ) %>% 
+    filter(ebitda_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      current_ebitda_current_quarter,
+      current_ebitda_previous_quarter,
+      ebitda_diff,
+      ebitda_diff_perc
+    )
+  
+  if (nrow(current_ebitda_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_ebitda_significant_change), " companies with significant decreases to EBITDA, please validate!"))
+    print(current_ebitda_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant decreases to EBITDA!")
+    
+  }
+  
+  current_sales_significant_change <- comp_data %>% 
+    mutate(
+      sales_diff = current_sales_previous_quarter - current_sales_current_quarter,
+      sales_diff_perc = (current_sales_previous_quarter - current_sales_current_quarter)/current_sales_previous_quarter
+    ) %>% 
+    filter(sales_diff_perc > 0.2) %>% 
+    select(
+      company_name,
+      current_sales_current_quarter,
+      current_sales_previous_quarter,
+      sales_diff,
+      sales_diff_perc
+    )
+  
+  if (nrow(current_sales_significant_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_sales_significant_change), " companies with significant decreases to sales, please validate!"))
+    print(current_sales_significant_change)
+    
+  } else {
+    
+    print("There are NO investments with significant decreases to sales!")
+    
+  }
+  
+  
+  current_debt_security_change <- comp_data %>% 
+    mutate(
+      type_of_debt_change = case_when(
+        current_type_of_debt_current_quarter != current_type_of_debt_previous_quarter ~ paste0("last quarter: ", current_type_of_debt_previous_quarter, " to this quarter: ", current_type_of_debt_current_quarter),
+        TRUE ~ "PASS"
+      )
+    ) %>% 
+    filter(type_of_debt_change != "PASS") %>% 
+    select(
+      company_name,
+      current_type_of_debt_current_quarter,
+      current_type_of_debt_previous_quarter,
+      type_of_debt_change
+    )
+  
+  if (nrow(current_debt_security_change) > 0) {
+    
+    print(paste0("There are ", nrow(current_debt_security_change), " companies with changes to Type of Debt Security, please validate!"))
+    print(current_debt_security_change)
+    
+  } else {
+    
+    print("There are NO investments with changes to Type of Debt Security!")
+    
+  }
+  
+  companies_entered_covenant_breach <- comp_data %>% 
+    filter(
+      current_covenants_breach_current_quarter == TRUE,
+      current_covenants_breach_previous_quarter != TRUE
+    ) %>% 
+    select(
+      company_name,
+      current_covenants_breach_current_quarter,
+      current_covenants_breach_previous_quarter,
+      everside_exposure
+    )
+  
+  offset <- 1
+  
+  if (nrow(companies_entered_covenant_breach) > 0) {
+    
+    print(paste0("There are ", nrow(companies_entered_covenant_breach), " companies that entered covenant breach status, please validate!"))
+    print(companies_entered_covenant_breach)
+    
+    x <- (paste0("There are ", nrow(companies_entered_covenant_breach), " companies that entered covenant breach status, please validate!"))
+    
+    writeData(notes,paste0(substr(kfund, 1, 8)," - ",ktable), x, startCol = 1, startRow = offset)
+    writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), companies_entered_covenant_breach, startCol = 1, startRow = offset + 1)
+    offset <- offset + nrow(companies_entered_covenant_breach) + 3
+    
+  } else {
+    
+    print("There are NO investments that newly entered covenants breached status!")
+    
+  }
+  
+  companies_entered_not_current_on_interest <- comp_data %>% 
+    filter(
+      current_on_interest_current_quarter == FALSE,
+      current_on_interest_previous_quarter != FALSE
+    ) %>% 
+    select(
+      company_name,
+      current_on_interest_current_quarter,
+      current_on_interest_previous_quarter,
+      everside_exposure
+    )
+  
+  if (nrow(companies_entered_not_current_on_interest) > 0) {
+    
+    print(paste0("There are ", nrow(companies_entered_not_current_on_interest), " companies that newly failed current on interest, please validate!"))
+    print(companies_entered_not_current_on_interest)
+    
+    newly_failed <- (paste0("There are ", nrow(companies_entered_not_current_on_interest), " companies that newly failed current on interest, please validate!"))
+    
+    writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), newly_failed, startCol = 1, startRow = offset)
+    writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), companies_entered_covenant_breach, startCol = 1, startRow = offset + 1)
+    offset <- offset + nrow(companies_entered_not_current_on_interest) + 3
+    
+  } else {
+    
+    print("There are NO investments that newly failed current on interest status!")
+    
+  }
+  
+  companies_to_remove_to_exit <- comp_data %>% 
+    filter(
+      invested_debt_current_quarter == 0,
+      invested_equity_current_quarter == 0
+    ) %>% 
+    select(
+      company_name,
+      invested_debt_current_quarter,
+      invested_equity_current_quarter
+    )
+  
+  if (nrow(companies_to_remove_to_exit) > 0) {
+    
+    print(paste0("There are ", nrow(companies_to_remove_to_exit), " companies that exited due to cost, please remove from the dataset this quarter!"))
+    print(companies_to_remove_to_exit)
+    
+  } else {
+    
+    print("There are NO investments with a total invested cost of $0")
+    
+  }
+  
+  interest_num <- comp_data %>% 
+    filter(
+      as_of_date_current_quarter == kas_of_date,
+      current_on_interest_current_quarter == FALSE
+    ) %>% 
+    summarize(sum(invested_debt_current_quarter, na.rm = TRUE)) %>% 
+    pull()
+  
+  interest_denom <- comp_data %>% 
+    filter(
+      as_of_date_current_quarter == kas_of_date
+    ) %>% 
+    mutate(total_invested = invested_debt_current_quarter + invested_equity_current_quarter) %>% 
+    summarize(sum(total_invested, na.rm = TRUE)) %>% 
+    pull()
+  
+  print(paste0(ktable, " reported ", round(((interest_num/interest_denom)*100),2), "% of their debt as NOT current on interest"))
+  
+  debt_not_current<- (paste0(ktable, " reported ", round(((interest_num/interest_denom)*100),2), "% of their debt as NOT current on interest"))
+  
+  writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), debt_not_current, startCol = 1, startRow = offset)
+  
+  offset <- offset + 2
+  
+  covenant_num <- comp_data %>% 
+    filter(
+      as_of_date_current_quarter == kas_of_date,
+      current_covenants_breach_current_quarter == TRUE
+    ) %>% 
+    summarize(sum(invested_debt_current_quarter, na.rm = TRUE)) %>% 
+    pull()
+  
+  covenant_denom <- comp_data %>% 
+    filter(
+      as_of_date_current_quarter == kas_of_date
+    ) %>% 
+    mutate(total_invested = invested_debt_current_quarter + invested_equity_current_quarter) %>% 
+    summarize(sum(total_invested, na.rm = TRUE)) %>% 
+    pull()
+  
+  print(paste0(ktable, " reported ", round(((covenant_num/covenant_denom)*100),2), "% of their debt IN covenant default"))
+  
+  debt_in_covenenat<- (paste0(ktable, " reported ", round(((covenant_num/covenant_denom)*100),2), "% of their debt IN covenant default"))
+  
+  writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), debt_in_covenenat, startCol = 1, startRow = offset)
+  
+  offset <- offset+2
+  
+  companies_to_flag_for_default <- comp_data %>% 
+    filter(
+      current_covenants_breach_current_quarter == TRUE | current_on_interest_current_quarter == FALSE
+    ) %>% 
+    select(
+      company_name,
+      current_covenants_breach_current_quarter,
+      current_on_interest_current_quarter,
+      invested_debt_current_quarter
+    )
+  
+  if (nrow(companies_to_flag_for_default) > 0) {
+  
+    print(paste0("Please have the deal team member responsible for ", ktable, " reach out and highlight these companies to the SBIC"))
+    print(companies_to_flag_for_default)
+    
+    companies_flagged<- (paste0("Please have the deal team member responsible for ", ktable, " reach out and highlight these companies to the SBIC"))
+    
+    writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), companies_flagged, startCol = 1, startRow = offset)
+    writeData(notes, paste0(substr(kfund, 1, 8)," - ",ktable), companies_to_flag_for_default, startCol = 1, startRow = offset + 1)
+    offset <- offset + nrow(companies_to_flag_for_default) + 3
+    
+  } else {
+    
+    print(paste0("There are NO investments in Coveneant Breach or Late on Interest for ", ktable, "!"))
+    
+  }
+  
+  list_of_fully_null_columns <- comp_data %>% 
+    select_if(~ !inherits(., "Date") && all(is.na(.) | is.null(.) | . == "NA" | . == "N/A")) %>% 
+    colnames() %>% 
+    data.table()
+  
+  list_of_esg_columns <- c(
+    "net_income_2m_current_quarter",
+    "tangible_net_worth_6m_current_quarter",
+    "employees_at_close_current_quarter",
+    "employees_at_recent_fte_current_quarter",
+    "green_healthcare_education_job_training_etc_y_n_current_quarter",
+    "low_mod_income_current_quarter",
+    "hub_zone_current_quarter",
+    "opportunity_zone_current_quarter",
+    "rural_current_quarter",
+    "minority_owned_current_quarter",
+    "woman_owned_current_quarter",
+    "veteran_owned_current_quarter",
+    "woman_management_current_quarter",
+    "minority_management_current_quarter",
+    "veteran_management_current_quarter",
+    "family_owned",
+    "non_committed_fund_sponsor_current_quarter"
+  )
+  
+  list_of_esg_columns_fully_null <- list_of_fully_null_columns %>% 
+    filter(. %in% list_of_esg_columns)
+  
+  if (nrow(list_of_esg_columns_fully_null) > 0) {
+    
+    print(paste0("Please have the deal team member responsible for ", ktable, " reach out to request ESG data on the below columns"))
+    print(list_of_esg_columns_fully_null)
+    
+  } else {
+    
+    print(paste0(ktable, " populated all of the ESG columns, no need to request additional information!"))
+    
+  }
+  
+  saveWorkbook(notes, paste0("~/R Output/",kfund," - ",ktable, " Notes - ", kas_of_date, ".xlsx"), overwrite = TRUE)
+  
+  return(comp_data)
+  
+}
+
+full_cleansing_and_comparison <- function(date_input = "2025-06-30", fund_input = "Fund II", investment_vertical_input = "Primary", table_input = "Boathouse_III", quarterly_template_input = "Boathouse III - Everside Quarterly Report Template (2Q24)", quarterly_template_Sheet = "Q2 2025", update_denom_mill_flag_input = FALSE) {
+  
+  as_of_date <- as.Date(date_input)
+  prev_as_of_date <- rollback(rollback(rollback(as_of_date)))
+  
+  start <- Sys.time()
+  ingested_data <- ingest_data(quarterly_template_input, quarterly_template_Sheet)
+  end <- Sys.time()
+  print(paste0("Successfully ingested the data, and it took ", time_length(end - start, "seconds"), " seconds"))
+  
+  start <- Sys.time()
+  cleansed_data <- data_cleanse(ingested_data, table_name = table_input, as_of_date_input = as_of_date, update_denom_mill_flag_input)
+  end <- Sys.time()
+  print(paste0("Successfully cleansed the data, and it took ", time_length(end - start, "seconds"), " seconds"))
+  
+  start <- Sys.time()
+  data_for_comparison <-  create_comparison_data(cleansed_data, kfund = fund_input, kinvestment_vertical = investment_vertical_input, ktable = table_input, kas_of_date = as_of_date)
+  end <- Sys.time()
+  print(paste0("Successfully prepped the data for comparison, and it took ", time_length(end - start, "seconds"), " seconds"))
+  
+  start <- Sys.time()
+  comp_data_return <- compare_data(quarterly_data_for_comp = data_for_comparison, Everside_Dataset = Everside_Dataset,  kfund = fund_input, kinvestment_vertical = investment_vertical_input, ktable = table_input, kas_of_date = as_of_date, kprev_as_of_date = prev_as_of_date)
+  end <- Sys.time()
+  print(paste0("Successfully compared the data, and it took ", time_length(end - start, "seconds"), " seconds"))
+  
+}
+
+getEversideFund <- function(table_name) {
+  
+  fund_name <- Everside_Dataset %>% 
+    filter(table == table_name) %>% 
+    distinct(fund, investment_vertical)
+  
+  print(fund_name)
+  
+}
+  
